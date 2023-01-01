@@ -7,52 +7,6 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
-type TokenKind uint8
-
-const (
-	// Controls
-	TokenColon TokenKind = iota
-	TokenComma
-	TokenDash
-
-	// Operators
-	TokenPlus
-	TokenMinus
-	TokenStar
-	TokenSlash
-	TokenLess
-	TokenDot
-	TokenDollar
-
-	// Delimiters
-	TokenOpenParen
-	TokenCloseParen
-	TokenOpenBrack
-	TokenCloseBrack
-	TokenOpenBrace
-	TokenCloseBrace
-
-	// Whitespace
-	TokenNewline
-	TokenOpenBlock
-	TokenCloseBlock
-
-	// Literals
-	TokenStr
-	TokenIdent
-	TokenInt
-	TokenFloat
-
-	// End of File
-	TokenEOF
-)
-
-type Token struct {
-	Kind   TokenKind
-	Lexeme string
-	Span   logger.Span
-}
-
 // TODO: Ternary operator.
 // TODO: Bitwise operators.
 // TODO: Boolean operators.
