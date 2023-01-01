@@ -109,9 +109,11 @@ type Token struct {
 
 func (token Token) String() string {
 	switch token.Kind {
-	case TokenStr, TokenIdent, TokenInt, TokenFloat:
+	case TokenStr, TokenIdent:
+		return fmt.Sprint(token.Kind, "(\"", token.Lexeme, "\")")
+	case TokenInt, TokenFloat:
 		return fmt.Sprint(token.Kind, "(", token.Lexeme, ")")
 	default:
-		return string(token.Kind)
+		return token.Kind.String()
 	}
 }
