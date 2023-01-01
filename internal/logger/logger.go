@@ -1,5 +1,7 @@
 package logger
 
+import "log"
+
 type Span struct {
 	Start int
 	End   int
@@ -31,7 +33,13 @@ func (logger *Logger) Log() bool {
 		return false
 	}
 
-	// TODO: Print out and discard errors.
+	for _, err := range logger.errors {
+		// TODO: Prettier logging.
+		log.Println(err)
+	}
+
+	// Clear errors.
+	logger.errors = nil
 
 	return true
 }
