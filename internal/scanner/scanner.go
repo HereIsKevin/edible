@@ -282,7 +282,7 @@ loop:
 
 		// Dedenting always involves a newline
 		scanner.addToken(TokenNewline)
-	} else if newline && scanner.start == 0 {
+	} else if newline && scanner.start != 0 {
 		// Add a newline if needed unless it is a leading newline
 		scanner.addToken(TokenNewline)
 	}
