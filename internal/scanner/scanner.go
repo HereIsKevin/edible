@@ -7,7 +7,7 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
-type TokenKind int
+type TokenKind uint8
 
 const (
 	// Controls
@@ -60,9 +60,8 @@ type Token struct {
 // TODO: Basic builtin functions.
 type Scanner struct {
 	source string
-
+	logger *logger.Logger
 	tokens []Token
-	errors []logger.Error
 
 	indents     []int
 	sensitivity int
@@ -73,12 +72,11 @@ type Scanner struct {
 	current  int
 }
 
-func New(source string) *Scanner {
+func New(source string, logger *logger.Logger) *Scanner {
 	return &Scanner{
 		source: source,
-
+		logger: logger,
 		tokens: []Token{},
-		errors: []logger.Error{},
 
 		indents:     []int{},
 		sensitivity: 0,
@@ -90,7 +88,7 @@ func New(source string) *Scanner {
 	}
 }
 
-func (scanner *Scanner) Scan() ([]Token, []logger.Error) {
+func (scanner *Scanner) Scan() []Token {
 	for !scanner.isEOF() {
 		scanner.start = scanner.current
 		scanner.scanToken()
@@ -98,13 +96,13 @@ func (scanner *Scanner) Scan() ([]Token, []logger.Error) {
 
 	// Auto-close all blocks by adding a dedent for every indent.
 	for index := 0; index < len(scanner.indents); index++ {
-		scanner.createToken(TokenCloseBlock)
+		scanner.addToken(TokenCloseBlock)
 	}
 
 	// Add final EOF token
-	scanner.createToken(TokenEOF)
+	scanner.addToken(TokenEOF)
 
-	return scanner.tokens, scanner.errors
+	return scanner.tokens
 }
 
 func (scanner *Scanner) scanToken() {
@@ -115,52 +113,52 @@ func (scanner *Scanner) scanToken() {
 	switch character {
 	// Controls
 	case ':':
-		scanner.createToken(TokenColon)
+		scanner.addToken(TokenColon)
 	case ',':
-		scanner.createToken(TokenComma)
+		scanner.addToken(TokenComma)
 	case '-':
 		if isLineStart && scanner.isSensitive() {
 			// Dashes at the start of a line in whitespace-sensitive areas denote arrays.
 			scanner.scanDash()
 		} else {
 			// Otherwise, they are just a normal minus operator.
-			scanner.createToken(TokenMinus)
+			scanner.addToken(TokenMinus)
 		}
 
 	// Operators
 	case '+':
-		scanner.createToken(TokenPlus)
+		scanner.addToken(TokenPlus)
 	// See controls for minus operator.
 	case '*':
-		scanner.createToken(TokenStar)
+		scanner.addToken(TokenStar)
 	case '/':
-		scanner.createToken(TokenSlash)
+		scanner.addToken(TokenSlash)
 	case '<':
-		scanner.createToken(TokenLess)
+		scanner.addToken(TokenLess)
 	case '.':
-		scanner.createToken(TokenDot)
+		scanner.addToken(TokenDot)
 	case '$':
-		scanner.createToken(TokenDollar)
+		scanner.addToken(TokenDollar)
 
 	// Delimiters
 	case '(':
 		scanner.desensitize()
-		scanner.createToken(TokenOpenParen)
+		scanner.addToken(TokenOpenParen)
 	case ')':
 		scanner.sensitize()
-		scanner.createToken(TokenCloseParen)
+		scanner.addToken(TokenCloseParen)
 	case '[':
 		scanner.desensitize()
-		scanner.createToken(TokenOpenBrack)
+		scanner.addToken(TokenOpenBrack)
 	case ']':
 		scanner.sensitize()
-		scanner.createToken(TokenCloseBrack)
+		scanner.addToken(TokenCloseBrack)
 	case '{':
 		scanner.desensitize()
-		scanner.createToken(TokenOpenBrace)
+		scanner.addToken(TokenOpenBrace)
 	case '}':
 		scanner.sensitize()
-		scanner.createToken(TokenCloseBrace)
+		scanner.addToken(TokenCloseBrace)
 
 	// Comments
 	case '#':
@@ -192,7 +190,7 @@ func (scanner *Scanner) scanToken() {
 			// Tabs are never valid as indentation, and are only ignored while not sensitive
 			// to whitespace. This is because though they count as one level while scanning,
 			// the same as spaces, text editors usually display them as 4 or 8 spaces.
-			scanner.createError("Unexpected tab, only spaces are valid indentation.")
+			scanner.addError("Unexpected tab, only spaces are valid indentation.")
 		}
 
 	case '\r', '\n':
@@ -216,11 +214,11 @@ func (scanner *Scanner) scanToken() {
 			if scanner.isSensitive() {
 				// Ignore all whitespace while not sensitive to whitespace. However, if
 				// sensitive whitespace, random whitespace is invalid.
-				scanner.createError("Unexpected whitespace.")
+				scanner.addError("Unexpected whitespace.")
 			}
 		} else {
 			// Everything else, including random symbols, are invalid.
-			scanner.createError("Unexpected character.")
+			scanner.addError("Unexpected character.")
 		}
 	}
 }
@@ -245,8 +243,8 @@ func (scanner *Scanner) scanDash() {
 	}
 
 	// Create a dash and immediately begin a new block.
-	scanner.createToken(TokenDash)
-	scanner.createToken(TokenOpenBlock)
+	scanner.addToken(TokenDash)
+	scanner.addToken(TokenOpenBlock)
 
 	scanner.indents = append(scanner.indents, indent)
 }
@@ -264,7 +262,7 @@ func (scanner *Scanner) scanBlock() {
 	newline := false
 
 	if scanner.peekPrevious() == ' ' {
-		indent += 1
+		indent++
 	}
 
 	if scanner.peekPrevious() == '\n' {
@@ -276,7 +274,7 @@ loop:
 		switch scanner.peek() {
 		case ' ':
 			scanner.advance()
-			indent += 1
+			indent++
 		case '\r':
 			// Consume CR
 			scanner.advance()
@@ -284,7 +282,7 @@ loop:
 			if scanner.peek() != '\n' {
 				// CR-only line endings are invalid while sensitive to whitespace. However,
 				// instead of going crazy, just skip over it to recover.
-				scanner.createError("Unexpected CR, line endings are CRLF and LF.")
+				scanner.addError("Unexpected CR, line endings are CRLF and LF.")
 				continue
 			}
 
@@ -319,20 +317,20 @@ loop:
 	if indent > lastIndent {
 		// Add a new block if indent level increased.
 		scanner.indents = append(scanner.indents, indent)
-		scanner.createToken(TokenOpenBlock)
+		scanner.addToken(TokenOpenBlock)
 	} else if indent < lastIndent {
 		for len(scanner.indents) > 0 &&
 			indent < scanner.indents[len(scanner.indents)-1] {
 			// Close blocks until indent is at the correct level.
 			scanner.indents = scanner.indents[:len(scanner.indents)-1]
-			scanner.createToken(TokenCloseBlock)
+			scanner.addToken(TokenCloseBlock)
 		}
 
 		// Dedenting always involves a newline
-		scanner.createToken(TokenNewline)
+		scanner.addToken(TokenNewline)
 	} else if newline && scanner.start == 0 {
 		// Add a newline if needed unless it is a leading newline
-		scanner.createToken(TokenNewline)
+		scanner.addToken(TokenNewline)
 	}
 
 	// Mark the current state as the start of the line since indentation only occurs
@@ -347,7 +345,7 @@ loop:
 func (scanner *Scanner) scanString() {
 	for scanner.peek() != '"' && !scanner.isEOF() {
 		if scanner.peek() == '\n' {
-			scanner.createError("Unexpected newline within string.")
+			scanner.addError("Unexpected newline within string.")
 			return
 		}
 
@@ -355,7 +353,7 @@ func (scanner *Scanner) scanString() {
 	}
 
 	if scanner.isEOF() {
-		scanner.createError("Unterminated string.")
+		scanner.addError("Unterminated string.")
 		return
 	}
 
@@ -366,7 +364,7 @@ func (scanner *Scanner) scanString() {
 	value := scanner.source[scanner.start+1 : scanner.current-1]
 
 	// Create string token.
-	scanner.createLiteralToken(TokenStr, value)
+	scanner.addLiteralToken(TokenStr, value)
 }
 
 func (scanner *Scanner) scanIdentifier() {
@@ -378,7 +376,7 @@ func (scanner *Scanner) scanIdentifier() {
 	value := scanner.source[scanner.start:scanner.current]
 
 	// Create identifier token.
-	scanner.createLiteralToken(TokenIdent, value)
+	scanner.addLiteralToken(TokenIdent, value)
 }
 
 // TODO: Disallow leading zeros.
@@ -402,13 +400,13 @@ func (scanner *Scanner) scanNumber() {
 		value := scanner.source[scanner.start:scanner.current]
 
 		// Create float token.
-		scanner.createLiteralToken(TokenFloat, value)
+		scanner.addLiteralToken(TokenFloat, value)
 	} else {
 		// Take value from source.
 		value := scanner.source[scanner.start:scanner.current]
 
 		// Create integer token.
-		scanner.createLiteralToken(TokenInt, value)
+		scanner.addLiteralToken(TokenInt, value)
 	}
 }
 
@@ -477,14 +475,14 @@ func (scanner *Scanner) createSpan() logger.Span {
 	}
 }
 
-func (scanner *Scanner) createToken(kind TokenKind) {
+func (scanner *Scanner) addToken(kind TokenKind) {
 	scanner.tokens = append(scanner.tokens, Token{
 		Kind: kind,
 		Span: scanner.createSpan(),
 	})
 }
 
-func (scanner *Scanner) createLiteralToken(kind TokenKind, lexeme string) {
+func (scanner *Scanner) addLiteralToken(kind TokenKind, lexeme string) {
 	scanner.tokens = append(scanner.tokens, Token{
 		Kind:   kind,
 		Lexeme: lexeme,
@@ -492,11 +490,8 @@ func (scanner *Scanner) createLiteralToken(kind TokenKind, lexeme string) {
 	})
 }
 
-func (scanner *Scanner) createError(message string) {
-	scanner.errors = append(scanner.errors, logger.Error{
-		Message: message,
-		Span:    scanner.createSpan(),
-	})
+func (scanner *Scanner) addError(message string) {
+	scanner.logger.Add(message, scanner.createSpan())
 }
 
 func isDigit(value rune) bool {
