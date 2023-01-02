@@ -147,7 +147,7 @@ type TableItem struct {
 
 type ExprTable struct {
 	OpenSpan  logger.Span
-	Items     []TableItem
+	Items     []*TableItem
 	CloseSpan logger.Span
 }
 

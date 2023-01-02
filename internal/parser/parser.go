@@ -109,7 +109,7 @@ func (parser *Parser) parseLiteral() Expr {
 		}
 
 		// Consume closing parenthesis.
-		token := parser.consume(scanner.TokenCloseBrack, "Expect ')' after parenthesis")
+		token := parser.consume(scanner.TokenCloseParen, "Expect ')' after expression")
 		if token == nil {
 			return nil
 		}
@@ -241,7 +241,7 @@ func (parser *Parser) parseInlineArray() Expr {
 	}
 
 	// Consume closing bracket.
-	token := parser.consume(scanner.TokenCloseBrack, "Expect ']' after expression key.")
+	token := parser.consume(scanner.TokenCloseBrack, "Expect ']' after array.")
 	if token == nil {
 		return nil
 	}
@@ -257,83 +257,23 @@ func (parser *Parser) parseInlineArray() Expr {
 }
 
 func (parser *Parser) parseInlineTable() Expr {
-	items := []TableItem{}
+	items := []*TableItem{}
 
 	// Consume opening brace.
 	openSpan := parser.advance().Span
 
 	for parser.peek().Kind != scanner.TokenCloseBrace {
-		key := Expr(nil)
-
-		switch parser.peek().Kind {
-		// Literal key
-		case scanner.TokenStr, scanner.TokenIdent:
-			token := parser.advance()
-			key = &ExprStr{
-				Value:     token.Value,
-				ValueSpan: token.Span,
-			}
-
-		// Expression key
-		case scanner.TokenOpenBrack:
-			// Consume opening bracket.
-			parser.advance()
-
-			// Consume expression and exit if fatal.
-			key = parser.parseInline()
-			if key == nil {
-				return nil
-			}
-
-			// Add expression as key
-
-			// Consume closing bracket.
-			token := parser.consume(scanner.TokenCloseBrack, "Expect ']' after expresion key.")
-			if token == nil {
-				return nil
-			}
-
-		default:
-			// Fatal, cannot recover from missing key.
-			parser.addError("Expect string, identifier, or expression for key.", parser.peek())
+		// Consume table item.
+		item := parser.parseTableItem(parser.parseInline)
+		if item == nil {
 			return nil
 		}
 
-		parent := Expr(nil)
+		// Add item to table.
+		items = append(items, item)
 
-		// Check for parent and consume if found.
-		if parser.peek().Kind == scanner.TokenLess {
-			// Consume inheritance operator.
-			parser.advance()
-
-			// Consume parent expression.
-			parent = parser.parseInline()
-			if parent == nil {
-				return nil
-			}
-		}
-
-		// Consume colon separator.
-		token := parser.consume(scanner.TokenColon, "Expect ':' beween key and value.")
-		if token == nil {
-			return nil
-		}
-
-		// Consume value expression.
-		value := parser.parseInline()
-		if value == nil {
-			return nil
-		}
-
-		// Add key and value pair as item.
-		items = append(items, TableItem{
-			Key:      key,
-			Inherits: parent,
-			Value:    value,
-		})
-
-		// Check for comma if not at closing bracket, otherwise just repeat.
-		if parser.peek().Kind != scanner.TokenCloseBrack {
+		// Check for comma if not at closing brace, otherwise just repeat.
+		if parser.peek().Kind != scanner.TokenCloseBrace {
 			// Consume comma.
 			token := parser.consume(scanner.TokenComma, "Expect ',' between items.")
 			if token == nil {
@@ -343,12 +283,86 @@ func (parser *Parser) parseInlineTable() Expr {
 	}
 
 	// Consume closing brace.
-	closeSpan := parser.advance().Span
+	token := parser.consume(scanner.TokenCloseBrace, "Expect '}' after table.")
+	if token == nil {
+		return nil
+	}
+
+	// Take span from closing brace.
+	closeSpan := token.Span
 
 	return &ExprTable{
 		OpenSpan:  openSpan,
 		Items:     items,
 		CloseSpan: closeSpan,
+	}
+}
+
+func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
+	key := Expr(nil)
+
+	switch parser.peek().Kind {
+	// Literal key
+	case scanner.TokenStr, scanner.TokenIdent:
+		token := parser.advance()
+		key = &ExprStr{
+			Value:     token.Value,
+			ValueSpan: token.Span,
+		}
+
+	// Expression key
+	case scanner.TokenOpenBrack:
+		// Consume opening bracket.
+		parser.advance()
+
+		// Consume expression and exit if fatal.
+		key = parser.parseInline()
+		if key == nil {
+			return nil
+		}
+
+		// Consume closing bracket.
+		token := parser.consume(scanner.TokenCloseBrack, "Expect ']' after expresion key.")
+		if token == nil {
+			return nil
+		}
+
+	default:
+		// Fatal, cannot recover from missing key.
+		parser.addError("Expect string, identifier, or expression for key.", parser.peek())
+		return nil
+	}
+
+	parent := Expr(nil)
+
+	// Check for parent and consume if found.
+	if parser.peek().Kind == scanner.TokenLess {
+		// Consume inheritance operator.
+		parser.advance()
+
+		// Consume parent expression.
+		parent = parser.parseInline()
+		if parent == nil {
+			return nil
+		}
+	}
+
+	// Consume colon separator.
+	token := parser.consume(scanner.TokenColon, "Expect ':' beween key and value.")
+	if token == nil {
+		return nil
+	}
+
+	// Consume value expression.
+	value := parser.parseInline()
+	if value == nil {
+		return nil
+	}
+
+	return &TableItem{
+		Key:      key,
+		Inherits: parent,
+		Value:    value,
 	}
 }
 
