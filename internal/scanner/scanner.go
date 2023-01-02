@@ -430,9 +430,9 @@ func (scanner *Scanner) addToken(kind TokenKind) {
 
 func (scanner *Scanner) addLiteralToken(kind TokenKind, lexeme string) {
 	scanner.tokens = append(scanner.tokens, Token{
-		Kind:   kind,
-		Lexeme: lexeme,
-		Span:   scanner.createSpan(),
+		Kind:  kind,
+		Value: lexeme,
+		Span:  scanner.createSpan(),
 	})
 }
 

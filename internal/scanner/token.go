@@ -48,6 +48,8 @@ const (
 
 func (kind TokenKind) String() string {
 	switch kind {
+	case TokenEOF:
+		return "EOF"
 	case TokenColon:
 		return "Colon"
 	case TokenComma:
@@ -94,25 +96,23 @@ func (kind TokenKind) String() string {
 		return "Int"
 	case TokenFloat:
 		return "Float"
-	case TokenEOF:
-		return "EOF"
 	default:
 		return "Unknown"
 	}
 }
 
 type Token struct {
-	Kind   TokenKind
-	Lexeme string
-	Span   logger.Span
+	Kind  TokenKind
+	Value string
+	Span  logger.Span
 }
 
 func (token Token) String() string {
 	switch token.Kind {
 	case TokenStr, TokenIdent:
-		return fmt.Sprint(token.Kind, "(\"", token.Lexeme, "\")")
+		return fmt.Sprint(token.Kind, "(\"", token.Value, "\")")
 	case TokenInt, TokenFloat:
-		return fmt.Sprint(token.Kind, "(", token.Lexeme, ")")
+		return fmt.Sprint(token.Kind, "(", token.Value, ")")
 	default:
 		return token.Kind.String()
 	}
