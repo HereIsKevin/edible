@@ -21,9 +21,8 @@ type Scanner struct {
 	sensitivity int
 	isLineStart bool
 
-	previous rune
-	start    int
-	current  int
+	start   int
+	current int
 }
 
 func New(source string, logger *logger.Logger) *Scanner {
@@ -36,9 +35,8 @@ func New(source string, logger *logger.Logger) *Scanner {
 		sensitivity: 0,
 		isLineStart: false,
 
-		previous: '\u0000',
-		start:    0,
-		current:  0,
+		start:   0,
+		current: 0,
 	}
 }
 
@@ -136,7 +134,7 @@ func (scanner *Scanner) scanToken() {
 			// Handle leading indentation. This should only run for indentation at the
 			// beginning of the file since all indentation after newlines is consumed with
 			// the newline. All other spaces are insignificant.
-			scanner.scanBlock()
+			scanner.scanBlock(character)
 		}
 
 	case '\t':
@@ -150,7 +148,7 @@ func (scanner *Scanner) scanToken() {
 	case '\r', '\n':
 		if scanner.isSensitive() {
 			// Handle LF and CRLF line endings while sensitive to whitespace.
-			scanner.scanBlock()
+			scanner.scanBlock(character)
 		}
 
 	// Strings
@@ -211,15 +209,15 @@ func (scanner *Scanner) scanComment() {
 }
 
 // TODO: Maybe support tabs as indentation?
-func (scanner *Scanner) scanBlock() {
+func (scanner *Scanner) scanBlock(previous rune) {
 	indent := 0
 	newline := false
 
-	if scanner.peekPrevious() == ' ' {
+	if previous == ' ' {
 		indent++
 	}
 
-	if scanner.peekPrevious() == '\n' {
+	if previous == '\n' {
 		newline = true
 	}
 
@@ -374,14 +372,8 @@ func (scanner *Scanner) advance() rune {
 		return '\u0000'
 	}
 
-	scanner.previous = codePoint
 	scanner.current += width
-
 	return codePoint
-}
-
-func (scanner *Scanner) peekPrevious() rune {
-	return scanner.previous
 }
 
 func (scanner *Scanner) peek() rune {
