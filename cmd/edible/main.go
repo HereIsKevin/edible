@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/HereIsKevin/edible/internal/logger"
+	"github.com/HereIsKevin/edible/internal/parser"
 	"github.com/HereIsKevin/edible/internal/scanner"
 )
 
@@ -52,4 +54,21 @@ func main() {
 			fmt.Print(token, " ")
 		}
 	}
+
+	parserStart := time.Now()
+	expr := parser.New(tokens, logger).Parse()
+	parserEnd := float64(time.Since(parserStart)) / float64(time.Millisecond)
+
+	fmt.Println("\n========== PARSER:", parserEnd, "ms ==========")
+
+	if logger.Log() {
+		os.Exit(1)
+	}
+
+	marshaled, err := json.MarshalIndent(expr, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(marshaled))
 }
