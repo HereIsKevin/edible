@@ -9,8 +9,11 @@ import (
 type TokenKind uint8
 
 const (
+	// End of File
+	TokenEOF TokenKind = iota
+
 	// Controls
-	TokenColon TokenKind = iota
+	TokenColon
 	TokenComma
 	TokenDash
 
@@ -41,9 +44,6 @@ const (
 	TokenIdent
 	TokenInt
 	TokenFloat
-
-	// End of File
-	TokenEOF
 )
 
 func (kind TokenKind) String() string {
