@@ -51,7 +51,7 @@ func (scanner *Scanner) Scan() []Token {
 		scanner.addToken(TokenCloseBlock)
 	}
 
-	// Add final EOF token
+	// Add final EOF token.
 	scanner.addToken(TokenEOF)
 
 	return scanner.tokens
@@ -271,8 +271,7 @@ loop:
 		scanner.indents = append(scanner.indents, indent)
 		scanner.addToken(TokenOpenBlock)
 	} else if indent < lastIndent {
-		for len(scanner.indents) > 0 &&
-			indent < scanner.indents[len(scanner.indents)-1] {
+		for len(scanner.indents) > 0 && indent < scanner.indents[len(scanner.indents)-1] {
 			// Close blocks until indent is at the correct level.
 			scanner.indents = scanner.indents[:len(scanner.indents)-1]
 			scanner.addToken(TokenCloseBlock)
