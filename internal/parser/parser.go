@@ -22,7 +22,7 @@ func New(tokens []scanner.Token, logger *logger.Logger) *Parser {
 }
 
 func (parser *Parser) Parse() Expr {
-	expr := parser.parseLiteral()
+	expr := parser.parseInline()
 
 	if !parser.isEOF() {
 		parser.addError("Unexpected token.", parser.peek())
@@ -32,7 +32,104 @@ func (parser *Parser) Parse() Expr {
 }
 
 func (parser *Parser) parseInline() Expr {
-	return parser.parseLiteral()
+	return parser.parseTerm()
+}
+
+func (parser *Parser) parseTerm() Expr {
+	expr := parser.parseFactor()
+	if expr == nil {
+		return nil
+	}
+
+loop:
+	for {
+		var op BinaryOp
+
+		switch parser.peek().Kind {
+		case scanner.TokenPlus:
+			op = BinaryPlus
+		case scanner.TokenMinus:
+			op = BinaryMinus
+		default:
+			break loop
+		}
+
+		opSpan := parser.advance().Span
+		right := parser.parseFactor()
+		if right == nil {
+			return nil
+		}
+
+		expr = &ExprBinary{
+			Left:   expr,
+			Op:     op,
+			OpSpan: opSpan,
+			Right:  right,
+		}
+	}
+
+	return expr
+}
+
+func (parser *Parser) parseFactor() Expr {
+	expr := parser.parseUnary()
+	if expr == nil {
+		return nil
+	}
+
+loop:
+	for {
+		var op BinaryOp
+
+		switch parser.peek().Kind {
+		case scanner.TokenStar:
+			op = BinaryStar
+		case scanner.TokenSlash:
+			op = BinarySlash
+		default:
+			break loop
+		}
+
+		opSpan := parser.advance().Span
+		right := parser.parseUnary()
+		if right == nil {
+			return nil
+		}
+
+		expr = &ExprBinary{
+			Left:   expr,
+			Op:     op,
+			OpSpan: opSpan,
+			Right:  right,
+		}
+	}
+
+	return expr
+}
+
+func (parser *Parser) parseUnary() Expr {
+	var op UnaryOp
+
+	switch parser.peek().Kind {
+	case scanner.TokenPlus:
+		op = UnaryPlus
+	case scanner.TokenMinus:
+		op = UnaryMinus
+	default:
+		return parser.parseLiteral()
+	}
+
+	opSpan := parser.advance().Span
+	expr := parser.parseUnary()
+	if expr == nil {
+		return nil
+	}
+
+	return &ExprUnary{
+		Op:     op,
+		OpSpan: opSpan,
+		Right:  expr,
+	}
 }
 
 func (parser *Parser) parseLiteral() Expr {
@@ -299,7 +396,7 @@ func (parser *Parser) parseInlineTable() Expr {
 }
 
 func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
-	key := Expr(nil)
+	var key Expr
 
 	switch parser.peek().Kind {
 	// Literal key
@@ -333,7 +430,7 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 		return nil
 	}
 
-	parent := Expr(nil)
+	var parent Expr
 
 	// Check for parent and consume if found.
 	if parser.peek().Kind == scanner.TokenLess {
