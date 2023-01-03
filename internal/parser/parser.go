@@ -576,7 +576,7 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 	}
 
 	// Consume value expression.
-	value := parser.parseInline()
+	value := valueParser()
 	if value == nil {
 		return nil
 	}
