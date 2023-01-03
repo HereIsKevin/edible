@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +14,10 @@ import (
 )
 
 func main() {
-	contents, err := os.ReadFile(os.Args[1])
+	flag.Parse()
+
+	path := flag.Arg(0)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,40 +29,47 @@ func main() {
 	tokens := scanner.New(source, logger).Scan()
 	scannerEnd := float64(time.Since(scannerStart)) / float64(time.Millisecond)
 
-	fmt.Println("========== SCANNER:", scannerEnd, "ms ==========")
+	fmt.Printf("========== SCANNER: %f ms ==========\n", scannerEnd)
 
 	if logger.Log() {
 		os.Exit(1)
 	}
 
 	indent := 0
+	builder := strings.Builder{}
 
 	for _, token := range tokens {
+		var value string
+
 		switch token.Kind {
 		case scanner.TokenOpenParen,
 			scanner.TokenOpenBrack,
 			scanner.TokenOpenBrace,
 			scanner.TokenOpenBlock:
 			indent += 1
-			fmt.Print(token, "\n", strings.Repeat("    ", indent))
+			value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
 		case scanner.TokenCloseParen,
 			scanner.TokenCloseBrack,
 			scanner.TokenCloseBrace,
 			scanner.TokenCloseBlock:
 			indent -= 1
-			fmt.Print("\n", strings.Repeat("    ", indent), token, " ")
+			value = fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token)
 		case scanner.TokenEOF, scanner.TokenComma, scanner.TokenNewline:
-			fmt.Print(token, "\n", strings.Repeat("    ", indent))
+			value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
 		default:
-			fmt.Print(token, " ")
+			value = fmt.Sprintf("%s ", token)
 		}
+
+		builder.WriteString(value)
 	}
+
+	fmt.Println(builder.String())
 
 	parserStart := time.Now()
 	expr := parser.New(tokens, logger).Parse()
 	parserEnd := float64(time.Since(parserStart)) / float64(time.Millisecond)
 
-	fmt.Println("\n========== PARSER:", parserEnd, "ms ==========")
+	fmt.Printf("========== PARSER: %f ms ==========\n", parserEnd)
 
 	if logger.Log() {
 		os.Exit(1)
