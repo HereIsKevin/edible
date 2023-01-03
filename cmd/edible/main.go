@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile := flag.String("memprofile", "", "write memory profile to file")
 	silent := flag.Bool("silent", false, "disable debug output")
 	flag.Parse()
 
@@ -66,5 +68,18 @@ func main() {
 
 	if !*silent {
 		fmt.Println(expr)
+	}
+
+	if *memprofile != "" {
+		file, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(file); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
