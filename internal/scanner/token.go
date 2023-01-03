@@ -109,10 +109,10 @@ type Token struct {
 
 func (token Token) String() string {
 	switch token.Kind {
-	case TokenStr, TokenIdent:
-		return fmt.Sprint(token.Kind, "(\"", token.Value, "\")")
-	case TokenInt, TokenFloat:
-		return fmt.Sprint(token.Kind, "(", token.Value, ")")
+	case TokenStr:
+		return fmt.Sprintf("%s(\"%s\")", token.Kind, token.Value)
+	case TokenIdent, TokenInt, TokenFloat:
+		return fmt.Sprintf("%s(%s)", token.Kind, token.Value)
 	default:
 		return token.Kind.String()
 	}
