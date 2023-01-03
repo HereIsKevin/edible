@@ -13,12 +13,12 @@ type parserState struct {
 }
 
 type Parser struct {
-	tokens  []scanner.Token
+	tokens  scanner.Tokens
 	logger  *logger.Logger
 	current int
 }
 
-func New(tokens []scanner.Token, logger *logger.Logger) *Parser {
+func New(tokens scanner.Tokens, logger *logger.Logger) *Parser {
 	return &Parser{
 		tokens:  tokens,
 		logger:  logger,

@@ -15,7 +15,7 @@ import (
 type Scanner struct {
 	source string
 	logger *logger.Logger
-	tokens []Token
+	tokens Tokens
 
 	indents     []int
 	sensitivity int
@@ -29,7 +29,7 @@ func New(source string, logger *logger.Logger) *Scanner {
 	return &Scanner{
 		source: source,
 		logger: logger,
-		tokens: []Token{},
+		tokens: Tokens{},
 
 		indents:     []int{},
 		sensitivity: 0,
@@ -40,7 +40,7 @@ func New(source string, logger *logger.Logger) *Scanner {
 	}
 }
 
-func (scanner *Scanner) Scan() []Token {
+func (scanner *Scanner) Scan() Tokens {
 	for !scanner.isEOF() {
 		scanner.start = scanner.current
 		scanner.scanToken()

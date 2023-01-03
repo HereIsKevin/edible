@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/HereIsKevin/edible/internal/logger"
 )
@@ -116,4 +117,41 @@ func (token Token) String() string {
 	default:
 		return token.Kind.String()
 	}
+}
+
+type Tokens []Token
+
+func (tokens Tokens) String() string {
+	indent := 0
+	builder := strings.Builder{}
+
+	for index, token := range tokens {
+		switch token.Kind {
+		case TokenOpenParen, TokenOpenBrack, TokenOpenBrace, TokenOpenBlock:
+			indent += 1
+			builder.WriteString(fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent)))
+		case TokenCloseParen, TokenCloseBrack, TokenCloseBrace, TokenCloseBlock:
+			indent -= 1
+			builder.WriteString(fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token))
+		case TokenEOF, TokenComma, TokenNewline:
+			if len(tokens) > index+1 {
+				kind := tokens[index+1].Kind
+
+				if kind == TokenCloseParen ||
+					kind == TokenCloseBrack ||
+					kind == TokenCloseBrace ||
+					kind == TokenCloseBlock {
+
+					builder.WriteString(token.String())
+					break
+				}
+			}
+
+			builder.WriteString(fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent)))
+		default:
+			builder.WriteString(fmt.Sprintf("%s ", token.String()))
+		}
+	}
+
+	return builder.String()
 }

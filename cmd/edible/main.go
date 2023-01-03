@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"time"
 
 	"github.com/HereIsKevin/edible/internal/logger"
@@ -52,52 +51,7 @@ func main() {
 	}
 
 	if !*silent {
-		indent := 0
-		builder := strings.Builder{}
-
-		for index, token := range tokens {
-			var value string
-
-			switch token.Kind {
-			case scanner.TokenOpenParen,
-				scanner.TokenOpenBrack,
-				scanner.TokenOpenBrace,
-				scanner.TokenOpenBlock:
-
-				indent += 1
-				value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
-
-			case scanner.TokenCloseParen,
-				scanner.TokenCloseBrack,
-				scanner.TokenCloseBrace,
-				scanner.TokenCloseBlock:
-
-				indent -= 1
-				value = fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token)
-
-			case scanner.TokenEOF, scanner.TokenComma, scanner.TokenNewline:
-				if len(tokens) > index+1 {
-					kind := tokens[index+1].Kind
-
-					if kind == scanner.TokenCloseParen ||
-						kind == scanner.TokenCloseBrack ||
-						kind == scanner.TokenCloseBrace ||
-						kind == scanner.TokenCloseBlock {
-
-						value = token.String()
-						break
-					}
-				}
-
-				value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
-			default:
-				value = fmt.Sprintf("%s ", token)
-			}
-
-			builder.WriteString(value)
-		}
-
-		fmt.Println(builder.String())
+		fmt.Println(tokens)
 	}
 
 	parserStart := time.Now()
