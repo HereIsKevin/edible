@@ -55,7 +55,7 @@ func main() {
 		indent := 0
 		builder := strings.Builder{}
 
-		for _, token := range tokens {
+		for index, token := range tokens {
 			var value string
 
 			switch token.Kind {
@@ -72,6 +72,18 @@ func main() {
 				indent -= 1
 				value = fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token)
 			case scanner.TokenEOF, scanner.TokenComma, scanner.TokenNewline:
+				if len(tokens) > index+1 {
+					kind := tokens[index+1].Kind
+
+					if kind == scanner.TokenCloseParen ||
+						kind == scanner.TokenCloseBrack ||
+						kind == scanner.TokenCloseBrace ||
+						kind == scanner.TokenCloseBlock {
+						value = fmt.Sprintf("%s", token)
+						continue
+					}
+				}
+
 				value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
 			default:
 				value = fmt.Sprintf("%s ", token)
