@@ -10,6 +10,7 @@ import (
 type Parser struct {
 	tokens  []scanner.Token
 	logger  *logger.Logger
+	saves   []int
 	current int
 }
 
@@ -17,18 +18,142 @@ func New(tokens []scanner.Token, logger *logger.Logger) *Parser {
 	return &Parser{
 		tokens:  tokens,
 		logger:  logger,
+		saves:   []int{},
 		current: 0,
 	}
 }
 
 func (parser *Parser) Parse() Expr {
-	expr := parser.parseInline()
+	expr := parser.parseBlock()
 
 	if !parser.isEOF() {
 		parser.addError("Unexpected token.", parser.peek())
 	}
 
 	return expr
+}
+
+func (parser *Parser) parseBlock() Expr {
+	switch parser.peek().Kind {
+	// Block expression
+	case scanner.TokenOpenBlock:
+		// Consume block open.
+		parser.advance()
+
+		// Consume expression and possibly exit fatally.
+		expr := parser.parseBlock()
+		if expr == nil {
+			return nil
+		}
+
+		// Consume block closing.
+		token := parser.consume(scanner.TokenCloseParen, "Expect ')' after expression")
+		if token == nil {
+			return nil
+		}
+
+		return expr
+
+	// Block array
+	case scanner.TokenDash:
+		return parser.parseBlockArray()
+
+	// Block table
+	case scanner.TokenStr, scanner.TokenIdent, scanner.TokenOpenBrack:
+		return parser.parseBlockTable()
+
+	default:
+		// Descend to inline expressions.
+		return parser.parseInline()
+	}
+}
+
+func (parser *Parser) parseBlockArray() Expr {
+	items := []Expr{}
+
+	// Use span of first dash as opening span.
+	openSpan := parser.peek().Span
+
+	for parser.peek().Kind == scanner.TokenDash {
+		// Consume dash.
+		parser.advance()
+
+		// Consume expression.
+		expr := parser.parseBlock()
+		if expr == nil {
+			return nil
+		}
+
+		// Add expression as item.
+		items = append(items, expr)
+
+		// Finished if there is no newline.
+		if parser.peek().Kind == scanner.TokenNewline {
+			break
+		}
+
+		// Consume newline and repeat if dash.
+		parser.advance()
+	}
+
+	// Use span from last token as closing span.
+	closeSpan := parser.previous().Span
+
+	return &ExprArray{
+		OpenSpan:  openSpan,
+		Items:     items,
+		CloseSpan: closeSpan,
+	}
+}
+
+func (parser *Parser) parseBlockTable() Expr {
+	items := []*TableItem{}
+
+	// Use span of first key as opening span.
+	openSpan := parser.peek().Span
+
+	// Save parser state.
+	parser.save()
+
+	for parser.peek().Kind == scanner.TokenStr ||
+		parser.peek().Kind == scanner.TokenIdent ||
+		parser.peek().Kind == scanner.TokenOpenBrack {
+
+		// Consume table item.
+		item := parser.parseTableItem(parser.parseBlock)
+		if item == nil {
+			// Backtrace if this is the first failure.
+			if len(items) == 0 {
+				// Restore parser state.
+				parser.restore()
+
+				// Descend to inline expressions.
+				return parser.parseInline()
+			}
+
+			return nil
+		}
+
+		// Add item to table.
+		items = append(items, item)
+
+		// Finished if there is no newline.
+		if parser.peek().Kind == scanner.TokenNewline {
+			break
+		}
+
+		// Consume newline and repeat if key.
+		parser.advance()
+	}
+
+	// Use span from last token as closing span.
+	closeSpan := parser.previous().Span
+
+	return &ExprTable{
+		OpenSpan:  openSpan,
+		Items:     items,
+		CloseSpan: closeSpan,
+	}
 }
 
 func (parser *Parser) parseInline() Expr {
@@ -467,27 +592,6 @@ func (parser *Parser) isEOF() bool {
 	return parser.peek().Kind == scanner.TokenEOF
 }
 
-// func (parser *Parser) check(kind scanner.TokenKind) bool {
-// 	if parser.isEOF() {
-// 		return false
-// 	}
-
-// 	return parser.peek().Kind == kind
-// }
-
-// func (parser *Parser) match(kinds... scanner.TokenKind) bool {
-// 	actualKind := parser.peek().Kind
-
-// 	for _, kind := range kinds {
-// 		if kind == actualKind {
-// 			parser.advance()
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-// }
-
 func (parser *Parser) consume(expected scanner.TokenKind, message string) *scanner.Token {
 	if parser.peek().Kind == expected {
 		return parser.advance()
@@ -511,6 +615,17 @@ func (parser *Parser) previous() *scanner.Token {
 
 func (parser *Parser) peek() *scanner.Token {
 	return &parser.tokens[parser.current]
+}
+
+func (parser *Parser) save() {
+	parser.saves = append(parser.saves, parser.current)
+	parser.logger.Save()
+}
+
+func (parser *Parser) restore() {
+	parser.current = parser.saves[len(parser.saves)-1]
+	parser.saves = parser.saves[:len(parser.saves)-1]
+	parser.logger.Restore()
 }
 
 func (parser *Parser) addError(message string, token *scanner.Token) {
