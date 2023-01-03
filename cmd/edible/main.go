@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -14,7 +15,22 @@ import (
 )
 
 func main() {
+	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to file")
+	silent := flag.Bool("silent", false, "disable debug output")
 	flag.Parse()
+
+	if *cpuprofile != "" {
+		file, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		if err := pprof.StartCPUProfile(file); err != nil {
+			log.Fatal(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	path := flag.Arg(0)
 	contents, err := os.ReadFile(path)
@@ -29,41 +45,43 @@ func main() {
 	tokens := scanner.New(source, logger).Scan()
 	scannerEnd := float64(time.Since(scannerStart)) / float64(time.Millisecond)
 
-	fmt.Printf("========== SCANNER: %f ms ==========\n", scannerEnd)
+	fmt.Printf("========== SCANNER: %f ms (%d tokens) ==========\n", scannerEnd, len(tokens))
 
 	if logger.Log() {
 		os.Exit(1)
 	}
 
-	indent := 0
-	builder := strings.Builder{}
+	if !*silent {
+		indent := 0
+		builder := strings.Builder{}
 
-	for _, token := range tokens {
-		var value string
+		for _, token := range tokens {
+			var value string
 
-		switch token.Kind {
-		case scanner.TokenOpenParen,
-			scanner.TokenOpenBrack,
-			scanner.TokenOpenBrace,
-			scanner.TokenOpenBlock:
-			indent += 1
-			value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
-		case scanner.TokenCloseParen,
-			scanner.TokenCloseBrack,
-			scanner.TokenCloseBrace,
-			scanner.TokenCloseBlock:
-			indent -= 1
-			value = fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token)
-		case scanner.TokenEOF, scanner.TokenComma, scanner.TokenNewline:
-			value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
-		default:
-			value = fmt.Sprintf("%s ", token)
+			switch token.Kind {
+			case scanner.TokenOpenParen,
+				scanner.TokenOpenBrack,
+				scanner.TokenOpenBrace,
+				scanner.TokenOpenBlock:
+				indent += 1
+				value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
+			case scanner.TokenCloseParen,
+				scanner.TokenCloseBrack,
+				scanner.TokenCloseBrace,
+				scanner.TokenCloseBlock:
+				indent -= 1
+				value = fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token)
+			case scanner.TokenEOF, scanner.TokenComma, scanner.TokenNewline:
+				value = fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent))
+			default:
+				value = fmt.Sprintf("%s ", token)
+			}
+
+			builder.WriteString(value)
 		}
 
-		builder.WriteString(value)
+		fmt.Println(builder.String())
 	}
-
-	fmt.Println(builder.String())
 
 	parserStart := time.Now()
 	expr := parser.New(tokens, logger).Parse()
@@ -75,5 +93,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(expr)
+	if !*silent {
+		fmt.Println(expr)
+	}
 }
