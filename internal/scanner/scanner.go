@@ -29,7 +29,7 @@ func New(source string, logger *logger.Logger) *Scanner {
 	return &Scanner{
 		source: source,
 		logger: logger,
-		tokens: Tokens{},
+		tokens: make(Tokens, 0, len(source)/2),
 
 		indents:     []int{},
 		sensitivity: 0,
