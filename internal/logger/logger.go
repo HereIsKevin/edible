@@ -19,12 +19,14 @@ func (err *Error) Error() string {
 type Logger struct {
 	source string
 	errors []Error
+	saves  []int
 }
 
 func New(source string) *Logger {
 	return &Logger{
 		source: source,
 		errors: []Error{},
+		saves:  []int{},
 	}
 }
 
@@ -49,4 +51,13 @@ func (logger *Logger) Add(message string, span Span) {
 		Message: message,
 		Span:    span,
 	})
+}
+
+func (logger *Logger) Save() {
+	logger.saves = append(logger.saves, len(logger.errors))
+}
+
+func (logger *Logger) Restore() {
+	logger.errors = logger.errors[:logger.saves[len(logger.saves)-1]]
+	logger.saves = logger.saves[:len(logger.saves)-1]
 }
