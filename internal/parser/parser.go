@@ -7,10 +7,14 @@ import (
 	"github.com/HereIsKevin/edible/internal/scanner"
 )
 
+type parserState struct {
+	index  int
+	logger logger.LoggerState
+}
+
 type Parser struct {
 	tokens  []scanner.Token
 	logger  *logger.Logger
-	saves   []int
 	current int
 }
 
@@ -18,7 +22,6 @@ func New(tokens []scanner.Token, logger *logger.Logger) *Parser {
 	return &Parser{
 		tokens:  tokens,
 		logger:  logger,
-		saves:   []int{},
 		current: 0,
 	}
 }
@@ -47,7 +50,7 @@ func (parser *Parser) parseBlock() Expr {
 		}
 
 		// Consume block closing.
-		token := parser.consume(scanner.TokenCloseParen, "Expect ')' after expression")
+		token := parser.consume(scanner.TokenCloseBlock, "Expect dedent after block")
 		if token == nil {
 			return nil
 		}
@@ -88,7 +91,7 @@ func (parser *Parser) parseBlockArray() Expr {
 		items = append(items, expr)
 
 		// Finished if there is no newline.
-		if parser.peek().Kind == scanner.TokenNewline {
+		if parser.peek().Kind != scanner.TokenNewline {
 			break
 		}
 
@@ -113,7 +116,7 @@ func (parser *Parser) parseBlockTable() Expr {
 	openSpan := parser.peek().Span
 
 	// Save parser state.
-	parser.save()
+	state := parser.save()
 
 	for parser.peek().Kind == scanner.TokenStr ||
 		parser.peek().Kind == scanner.TokenIdent ||
@@ -125,7 +128,7 @@ func (parser *Parser) parseBlockTable() Expr {
 			// Backtrace if this is the first failure.
 			if len(items) == 0 {
 				// Restore parser state.
-				parser.restore()
+				parser.restore(state)
 
 				// Descend to inline expressions.
 				return parser.parseInline()
@@ -138,7 +141,7 @@ func (parser *Parser) parseBlockTable() Expr {
 		items = append(items, item)
 
 		// Finished if there is no newline.
-		if parser.peek().Kind == scanner.TokenNewline {
+		if parser.peek().Kind != scanner.TokenNewline {
 			break
 		}
 
@@ -617,15 +620,16 @@ func (parser *Parser) peek() *scanner.Token {
 	return &parser.tokens[parser.current]
 }
 
-func (parser *Parser) save() {
-	parser.saves = append(parser.saves, parser.current)
-	parser.logger.Save()
+func (parser *Parser) save() parserState {
+	return parserState{
+		index:  parser.current,
+		logger: parser.logger.Save(),
+	}
 }
 
-func (parser *Parser) restore() {
-	parser.current = parser.saves[len(parser.saves)-1]
-	parser.saves = parser.saves[:len(parser.saves)-1]
-	parser.logger.Restore()
+func (parser *Parser) restore(state parserState) {
+	parser.current = state.index
+	parser.logger.Restore(state.logger)
 }
 
 func (parser *Parser) addError(message string, token *scanner.Token) {

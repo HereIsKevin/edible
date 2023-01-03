@@ -16,17 +16,19 @@ func (err *Error) Error() string {
 	return err.Message
 }
 
+type LoggerState struct {
+	index int
+}
+
 type Logger struct {
 	source string
 	errors []Error
-	saves  []int
 }
 
 func New(source string) *Logger {
 	return &Logger{
 		source: source,
 		errors: []Error{},
-		saves:  []int{},
 	}
 }
 
@@ -53,11 +55,12 @@ func (logger *Logger) Add(message string, span Span) {
 	})
 }
 
-func (logger *Logger) Save() {
-	logger.saves = append(logger.saves, len(logger.errors))
+func (logger *Logger) Save() LoggerState {
+	return LoggerState{index: len(logger.errors)}
 }
 
-func (logger *Logger) Restore() {
-	logger.errors = logger.errors[:logger.saves[len(logger.saves)-1]]
-	logger.saves = logger.saves[:len(logger.saves)-1]
+func (logger *Logger) Restore(state LoggerState) {
+	if len(logger.errors) > state.index {
+		logger.errors = logger.errors[:state.index]
+	}
 }
