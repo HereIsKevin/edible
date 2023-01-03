@@ -1,9 +1,14 @@
 package parser
 
-import "github.com/HereIsKevin/edible/internal/logger"
+import (
+	"fmt"
+
+	"github.com/HereIsKevin/edible/internal/logger"
+)
 
 type Expr interface {
 	Span() logger.Span
+	fmt.Stringer
 }
 
 // String
@@ -17,6 +22,10 @@ func (str *ExprStr) Span() logger.Span {
 	return str.ValueSpan
 }
 
+func (str *ExprStr) String() string {
+	return fmt.Sprintf("Str(\"%s\")", str.Value)
+}
+
 // Boolean
 
 type ExprBool struct {
@@ -26,6 +35,10 @@ type ExprBool struct {
 
 func (bool *ExprBool) Span() logger.Span {
 	return bool.ValueSpan
+}
+
+func (bool *ExprBool) String() string {
+	return fmt.Sprintf("Bool(%t)", bool.Value)
 }
 
 // Integer
@@ -39,6 +52,10 @@ func (int *ExprInt) Span() logger.Span {
 	return int.ValueSpan
 }
 
+func (int *ExprInt) String() string {
+	return fmt.Sprintf("Int(%d)", int.Value)
+}
+
 // Float
 
 type ExprFloat struct {
@@ -50,6 +67,10 @@ func (float *ExprFloat) Span() logger.Span {
 	return float.ValueSpan
 }
 
+func (float *ExprFloat) String() string {
+	return fmt.Sprintf("Float(%f)", float.Value)
+}
+
 // Reference
 
 type RefModifier uint8
@@ -58,6 +79,17 @@ const (
 	RefAbsolute RefModifier = iota
 	RefRelative
 )
+
+func (modifier RefModifier) String() string {
+	switch modifier {
+	case RefAbsolute:
+		return "Absolute"
+	case RefRelative:
+		return "Relative"
+	default:
+		return "Unknown"
+	}
+}
 
 type ExprRef struct {
 	Modifier     RefModifier
@@ -75,6 +107,19 @@ func (ref *ExprRef) Span() logger.Span {
 	return span
 }
 
+func (ref *ExprRef) String() string {
+	keys := []string{}
+
+	for _, key := range ref.Keys {
+		keys = append(keys, key.String())
+	}
+
+	return debugStruct("Ref", []debugField{
+		{"Modifier", ref.Modifier.String()},
+		{"Keys", debugSlice(keys)},
+	})
+}
+
 // Unary
 
 type UnaryOp uint8
@@ -83,6 +128,17 @@ const (
 	UnaryPlus UnaryOp = iota
 	UnaryMinus
 )
+
+func (op UnaryOp) String() string {
+	switch op {
+	case UnaryPlus:
+		return "Plus"
+	case UnaryMinus:
+		return "Minus"
+	default:
+		return "Unknown"
+	}
+}
 
 type ExprUnary struct {
 	Op     UnaryOp
@@ -97,6 +153,13 @@ func (unary *ExprUnary) Span() logger.Span {
 	}
 }
 
+func (unary *ExprUnary) String() string {
+	return debugStruct("Unary", []debugField{
+		{"Op", unary.Op.String()},
+		{"Right", unary.Right.String()},
+	})
+}
+
 // Binary
 
 type BinaryOp uint8
@@ -107,6 +170,21 @@ const (
 	BinaryStar
 	BinarySlash
 )
+
+func (op BinaryOp) String() string {
+	switch op {
+	case BinaryPlus:
+		return "Plus"
+	case BinaryMinus:
+		return "Minus"
+	case BinaryStar:
+		return "Star"
+	case BinarySlash:
+		return "Slash"
+	default:
+		return "Unknown"
+	}
+}
 
 type ExprBinary struct {
 	Left   Expr
@@ -120,6 +198,14 @@ func (binary *ExprBinary) Span() logger.Span {
 		Start: binary.Left.Span().Start,
 		End:   binary.Right.Span().End,
 	}
+}
+
+func (binary *ExprBinary) String() string {
+	return debugStruct("Binary", []debugField{
+		{"Left", binary.Left.String()},
+		{"Op", binary.Op.String()},
+		{"Right", binary.Right.String()},
+	})
 }
 
 // Array
@@ -137,12 +223,38 @@ func (array *ExprArray) Span() logger.Span {
 	}
 }
 
+func (array *ExprArray) String() string {
+	items := []string{}
+
+	for _, item := range array.Items {
+		items = append(items, item.String())
+	}
+
+	return debugStruct("Array", []debugField{
+		{"Items", debugSlice(items)},
+	})
+}
+
 // Table
 
 type TableItem struct {
 	Key      Expr
 	Inherits Expr
 	Value    Expr
+}
+
+func (item *TableItem) String() string {
+	parent := "nil"
+
+	if item.Inherits != nil {
+		parent = item.Inherits.String()
+	}
+
+	return debugStruct("", []debugField{
+		{"Key", item.Key.String()},
+		{"Inherits", parent},
+		{"Value", item.Value.String()},
+	})
 }
 
 type ExprTable struct {
@@ -156,4 +268,16 @@ func (table *ExprTable) Span() logger.Span {
 		Start: table.OpenSpan.Start,
 		End:   table.CloseSpan.End,
 	}
+}
+
+func (table *ExprTable) String() string {
+	items := []string{}
+
+	for _, item := range table.Items {
+		items = append(items, item.String())
+	}
+
+	return debugStruct("Table", []debugField{
+		{"Items", debugSlice(items)},
+	})
 }

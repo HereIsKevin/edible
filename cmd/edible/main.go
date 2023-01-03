@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -65,10 +64,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	marshaled, err := json.MarshalIndent(expr, "", "    ")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(string(marshaled))
+	fmt.Println(expr)
 }
