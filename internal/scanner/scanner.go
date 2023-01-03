@@ -47,7 +47,7 @@ func (scanner *Scanner) Scan() Tokens {
 	}
 
 	// Auto-close all blocks by adding a dedent for every indent.
-	for index := 0; index < len(scanner.indents); index++ {
+	for range scanner.indents {
 		scanner.addToken(TokenCloseBlock)
 	}
 
