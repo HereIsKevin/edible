@@ -37,20 +37,6 @@ func debugSlice(values []string) string {
 	return builder.String()
 }
 
-func debugMap(values map[string]string) string {
-	builder := strings.Builder{}
-	builder.WriteString("map[]{\n")
-
-	for key, value := range values {
-		builder.WriteString(fmt.Sprintf("    %s: ", key))
-		builder.WriteString(strings.TrimSpace(indent(value)))
-		builder.WriteString(",\n")
-	}
-
-	builder.WriteString("}")
-	return builder.String()
-}
-
 func indent(value string) string {
 	builder := strings.Builder{}
 
