@@ -114,9 +114,9 @@ func (ref *ExprRef) String() string {
 		keys = append(keys, key.String())
 	}
 
-	return debugStruct("Ref", []debugField{
-		{"Modifier", ref.Modifier.String()},
-		{"Keys", debugSlice(keys)},
+	return logger.DebugStruct("Ref", []logger.DebugField{
+		{Key: "Modifier", Value: ref.Modifier.String()},
+		{Key: "Keys", Value: logger.DebugSlice(keys)},
 	})
 }
 
@@ -154,9 +154,9 @@ func (unary *ExprUnary) Span() logger.Span {
 }
 
 func (unary *ExprUnary) String() string {
-	return debugStruct("Unary", []debugField{
-		{"Op", unary.Op.String()},
-		{"Right", unary.Right.String()},
+	return logger.DebugStruct("Unary", []logger.DebugField{
+		{Key: "Op", Value: unary.Op.String()},
+		{Key: "Right", Value: unary.Right.String()},
 	})
 }
 
@@ -201,10 +201,10 @@ func (binary *ExprBinary) Span() logger.Span {
 }
 
 func (binary *ExprBinary) String() string {
-	return debugStruct("Binary", []debugField{
-		{"Left", binary.Left.String()},
-		{"Op", binary.Op.String()},
-		{"Right", binary.Right.String()},
+	return logger.DebugStruct("Binary", []logger.DebugField{
+		{Key: "Left", Value: binary.Left.String()},
+		{Key: "Op", Value: binary.Op.String()},
+		{Key: "Right", Value: binary.Right.String()},
 	})
 }
 
@@ -230,8 +230,8 @@ func (array *ExprArray) String() string {
 		items = append(items, item.String())
 	}
 
-	return debugStruct("Array", []debugField{
-		{"Items", debugSlice(items)},
+	return logger.DebugStruct("Array", []logger.DebugField{
+		{Key: "Items", Value: logger.DebugSlice(items)},
 	})
 }
 
@@ -250,10 +250,10 @@ func (item *TableItem) String() string {
 		parent = item.Inherits.String()
 	}
 
-	return debugStruct("", []debugField{
-		{"Key", item.Key.String()},
-		{"Inherits", parent},
-		{"Value", item.Value.String()},
+	return logger.DebugStruct("", []logger.DebugField{
+		{Key: "Key", Value: item.Key.String()},
+		{Key: "Inherits", Value: parent},
+		{Key: "Value", Value: item.Value.String()},
 	})
 }
 
@@ -277,7 +277,7 @@ func (table *ExprTable) String() string {
 		items = append(items, item.String())
 	}
 
-	return debugStruct("Table", []debugField{
-		{"Items", debugSlice(items)},
+	return logger.DebugStruct("Table", []logger.DebugField{
+		{Key: "Items", Value: logger.DebugSlice(items)},
 	})
 }

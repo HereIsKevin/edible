@@ -1,22 +1,22 @@
-package parser
+package logger
 
 import (
 	"fmt"
 	"strings"
 )
 
-type debugField struct {
-	key   string
-	value string
+type DebugField struct {
+	Key   string
+	Value string
 }
 
-func debugStruct(name string, fields []debugField) string {
+func DebugStruct(name string, fields []DebugField) string {
 	builder := strings.Builder{}
 	builder.WriteString(fmt.Sprintf("%s{\n", name))
 
 	for _, field := range fields {
-		builder.WriteString(fmt.Sprintf("    %s: ", field.key))
-		builder.WriteString(strings.TrimSpace(indent(field.value)))
+		builder.WriteString(fmt.Sprintf("    %s: ", field.Key))
+		builder.WriteString(strings.TrimSpace(indent(field.Value)))
 		builder.WriteString(",\n")
 	}
 
@@ -24,12 +24,26 @@ func debugStruct(name string, fields []debugField) string {
 	return builder.String()
 }
 
-func debugSlice(values []string) string {
+func DebugSlice(values []string) string {
 	builder := strings.Builder{}
 	builder.WriteString("[]{\n")
 
 	for _, value := range values {
 		builder.WriteString(indent(value))
+		builder.WriteString(",\n")
+	}
+
+	builder.WriteString("}")
+	return builder.String()
+}
+
+func DebugMap(pairs map[string]string) string {
+	builder := strings.Builder{}
+	builder.WriteString("map[]{\n")
+
+	for key, value := range pairs {
+		builder.WriteString(fmt.Sprintf("    %s: ", key))
+		builder.WriteString(strings.TrimSpace(indent(value)))
 		builder.WriteString(",\n")
 	}
 
