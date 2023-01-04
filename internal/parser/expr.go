@@ -95,6 +95,9 @@ type ExprRef struct {
 	Modifier     RefModifier
 	ModifierSpan logger.Span
 	Keys         []Expr
+
+	// Used by interpreter.
+	Cache Expr
 }
 
 func (ref *ExprRef) Span() logger.Span {
@@ -114,9 +117,16 @@ func (ref *ExprRef) String() string {
 		keys = append(keys, key.String())
 	}
 
+	cache := "nil"
+
+	if ref.Cache != nil {
+		cache = ref.Cache.String()
+	}
+
 	return debugStruct("Ref", []debugField{
 		{"Modifier", ref.Modifier.String()},
 		{"Keys", debugSlice(keys)},
+		{"Cache", cache},
 	})
 }
 
@@ -144,6 +154,9 @@ type ExprUnary struct {
 	Op     UnaryOp
 	OpSpan logger.Span
 	Right  Expr
+
+	// Used by interpreter.
+	Cache Expr
 }
 
 func (unary *ExprUnary) Span() logger.Span {
@@ -154,9 +167,16 @@ func (unary *ExprUnary) Span() logger.Span {
 }
 
 func (unary *ExprUnary) String() string {
+	cache := "nil"
+
+	if unary.Cache != nil {
+		cache = unary.Cache.String()
+	}
+
 	return debugStruct("Unary", []debugField{
 		{"Op", unary.Op.String()},
 		{"Right", unary.Right.String()},
+		{"Cache", cache},
 	})
 }
 
@@ -191,6 +211,9 @@ type ExprBinary struct {
 	Op     BinaryOp
 	OpSpan logger.Span
 	Right  Expr
+
+	// Used by interpreter.
+	Cache Expr
 }
 
 func (binary *ExprBinary) Span() logger.Span {
@@ -201,10 +224,17 @@ func (binary *ExprBinary) Span() logger.Span {
 }
 
 func (binary *ExprBinary) String() string {
+	cache := "nil"
+
+	if binary.Cache != nil {
+		cache = binary.Cache.String()
+	}
+
 	return debugStruct("Binary", []debugField{
 		{"Left", binary.Left.String()},
 		{"Op", binary.Op.String()},
 		{"Right", binary.Right.String()},
+		{"Cache", cache},
 	})
 }
 
@@ -261,6 +291,9 @@ type ExprTable struct {
 	OpenSpan  logger.Span
 	Items     []*TableItem
 	CloseSpan logger.Span
+
+	// Used by interpreter.
+	Cache map[string]Expr
 }
 
 func (table *ExprTable) Span() logger.Span {
@@ -277,7 +310,14 @@ func (table *ExprTable) String() string {
 		items = append(items, item.String())
 	}
 
+	cache := map[string]string{}
+
+	for key, cached := range table.Cache {
+		cache[key] = cached.String()
+	}
+
 	return debugStruct("Table", []debugField{
 		{"Items", debugSlice(items)},
+		{"Cache", debugMap(cache)},
 	})
 }

@@ -9,6 +9,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/HereIsKevin/edible/internal/interpreter"
 	"github.com/HereIsKevin/edible/internal/logger"
 	"github.com/HereIsKevin/edible/internal/parser"
 	"github.com/HereIsKevin/edible/internal/scanner"
@@ -68,6 +69,20 @@ func main() {
 
 	if !*silent {
 		fmt.Println(expr)
+	}
+
+	interpreterStart := time.Now()
+	interpreted := interpreter.New(expr, logger).Interpret()
+	interpreterEnd := float64(time.Since(interpreterStart)) / float64(time.Millisecond)
+
+	fmt.Printf("========== Interpreter: %f ms ==========\n", interpreterEnd)
+
+	if logger.Log() {
+		os.Exit(1)
+	}
+
+	if !*silent {
+		fmt.Println(interpreted)
 	}
 
 	if *memprofile != "" {

@@ -156,6 +156,9 @@ func (parser *Parser) parseBlockTable() Expr {
 		OpenSpan:  openSpan,
 		Items:     items,
 		CloseSpan: closeSpan,
+
+		// Needed for interpreter.
+		Cache: map[string]Expr{},
 	}
 }
 
@@ -520,6 +523,9 @@ func (parser *Parser) parseInlineTable() Expr {
 		OpenSpan:  openSpan,
 		Items:     items,
 		CloseSpan: closeSpan,
+
+		// Needed for interpreter.
+		Cache: map[string]Expr{},
 	}
 }
 
