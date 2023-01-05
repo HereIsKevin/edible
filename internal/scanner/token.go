@@ -153,5 +153,5 @@ func (tokens Tokens) String() string {
 		}
 	}
 
-	return builder.String()
+	return strings.TrimSpace(builder.String())
 }
