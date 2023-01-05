@@ -9,7 +9,6 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/HereIsKevin/edible/internal/evaluator"
 	"github.com/HereIsKevin/edible/internal/logger"
 	"github.com/HereIsKevin/edible/internal/parser"
 	"github.com/HereIsKevin/edible/internal/scanner"
@@ -69,22 +68,6 @@ func main() {
 
 	if !*silent {
 		fmt.Println(expr)
-	}
-
-	evaluatorStart := time.Now()
-	evaluator := evaluator.New(expr, logger)
-	evaluator.Evaluate()
-	evaluator.Evaluate()
-	evaluatorEnd := float64(time.Since(evaluatorStart)) / float64(time.Millisecond)
-
-	fmt.Printf("========== EVALUATOR: %f ms ==========\n", evaluatorEnd)
-
-	if logger.Log() {
-		os.Exit(1)
-	}
-
-	if !*silent {
-		fmt.Println(evaluator)
 	}
 
 	if *memprofile != "" {
