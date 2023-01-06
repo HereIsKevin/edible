@@ -238,21 +238,21 @@ func (array *ExprArray) String() string {
 // Table
 
 type TableItem struct {
-	Key      Expr
-	Inherits Expr
-	Value    Expr
+	Key    Expr
+	Parent Expr
+	Value  Expr
 }
 
 func (item *TableItem) String() string {
 	parent := "nil"
 
-	if item.Inherits != nil {
-		parent = item.Inherits.String()
+	if item.Parent != nil {
+		parent = item.Parent.String()
 	}
 
 	return logger.DebugStruct("", []logger.DebugField{
 		{Key: "Key", Value: item.Key.String()},
-		{Key: "Inherits", Value: parent},
+		{Key: "Parent", Value: parent},
 		{Key: "Value", Value: item.Value.String()},
 	})
 }

@@ -43,7 +43,7 @@ func New(source string, logger *logger.Logger) *Scanner {
 func (scanner *Scanner) Scan() Tokens {
 	for !scanner.isEOF() {
 		scanner.start = scanner.current
-		scanner.scanToken()
+		scanner.scan()
 	}
 
 	// Auto-close all blocks by adding a dedent for every indent.
@@ -57,7 +57,7 @@ func (scanner *Scanner) Scan() Tokens {
 	return scanner.tokens
 }
 
-func (scanner *Scanner) scanToken() {
+func (scanner *Scanner) scan() {
 	character := scanner.advance()
 	isLineStart := scanner.isLineStart
 	scanner.isLineStart = false

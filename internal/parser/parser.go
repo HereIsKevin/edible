@@ -343,7 +343,7 @@ func (parser *Parser) parseLiteral() Expr {
 
 	// Reference
 	case scanner.TokenDollar, scanner.TokenDot:
-		return parser.parseReference()
+		return parser.parseRef()
 
 	// Inline array
 	case scanner.TokenOpenBrack:
@@ -360,7 +360,7 @@ func (parser *Parser) parseLiteral() Expr {
 	}
 }
 
-func (parser *Parser) parseReference() Expr {
+func (parser *Parser) parseRef() Expr {
 	keys := []Expr{}
 
 	// Consume modifier.
@@ -585,9 +585,9 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 	}
 
 	return &TableItem{
-		Key:      key,
-		Inherits: parent,
-		Value:    value,
+		Key:    key,
+		Parent: parent,
+		Value:  value,
 	}
 }
 
