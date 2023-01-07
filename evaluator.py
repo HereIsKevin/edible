@@ -70,8 +70,8 @@ class Unary:
     _cache: Expr | None = None
     _evaluated: bool = False
 
-    # def __repr__(self) -> str:
-    #     return repr(self._cache)
+    def __repr__(self) -> str:
+        return repr(self._cache)
 
 
 class BinaryOp(Enum):
@@ -91,8 +91,8 @@ class Binary:
     _cache: Expr | None = None
     _evaluated: bool = False
 
-    # def __repr__(self) -> str:
-    #     return repr(self._cache)
+    def __repr__(self) -> str:
+        return repr(self._cache)
 
 
 @dataclass
@@ -102,8 +102,8 @@ class Array:
     # Data for evaluation.
     _cache: list[Expr] = field(default_factory=list)
 
-    # def __repr__(self) -> str:
-    #     return repr(self._cache)
+    def __repr__(self) -> str:
+        return repr(self._cache)
 
 
 @dataclass
@@ -118,6 +118,7 @@ class Table:
     items: list[TableItem]
 
     # Data for evaluation.
+    _keys: list[str | None] = field(default_factory=list)
     _cache: dict[str, Expr | TableItem] = field(default_factory=dict)
 
     def __repr__(self) -> str:
@@ -147,7 +148,7 @@ class Evaluator:
     def _resolve(self, parent: Expr | None, expr: Expr) -> None:
         match expr:
             case Str() | Bool() | Int() | Float():
-                return
+                pass
             case Ref():
                 expr._parent = parent
             case Unary(right=right):
@@ -197,23 +198,37 @@ class Evaluator:
         #     then it is an error.
         #   otherwise update the current expression to the indexed expression.
 
+        # Do not evaluate already evaluated references.
         if ref._evaluated:
             return
 
+        # Set the status to being evaluated to prevent infinite recursion.
         ref._evaluated = True
 
         if ref.modifier == RefModifier.ABSOLUTE:
+            # Use the root expression for the absolute modifier.
             current = self._expr
         else:
+            # Use the parent for the relative modifier.
             current = ref._parent
 
         for key in ref.keys:
+            # Evaluate the key in the reference.
             key = self._evaluate_key(key)
 
             match current:
                 case Array():
                     raise NotImplementedError
                 case Table(items):
+                    # if not isinstance(key, Str):
+                    #     raise TypeError("Table key must be string.")
+
+                    # # Evaluate table keys.
+                    # self._evaluate_table_keys(current)
+
+                    # try:
+                    #     current = current._cache[key.value]
+
                     found = False
 
                     for item in items:
@@ -238,6 +253,7 @@ class Evaluator:
                         if isinstance(item_key, Str) and key.value == item_key.value:
                             print("MATCH", key, item.key, current)
                             current = item.value
+                            self._evaluate(current)
                             found = True
                             break
 
@@ -265,9 +281,21 @@ class Evaluator:
 
         return key
 
-    # def _evaluate_table_keys(self, table: Table) -> None:
-    #     for item in table.items:
-    #         self._evaluate_key(item.key)
+    def _evaluate_table_keys(self, table: Table) -> None:
+        for item in table.items:
+            try:
+                # Evaluate the key if possible.
+                key = self._evaluate_key(item.key)
+            except (RuntimeError, TypeError):
+                # Otherwise just skip over it.
+                table._keys.append(None)
+                continue
+
+            if not isinstance(key, Str):
+                raise RuntimeError("Expected string for table key.")
+
+            table._keys.append(key.value)
+            table._cache[key.value] = item
 
     def _evaluate_table(self, table: Table) -> None:
         for item in table.items:
@@ -291,7 +319,8 @@ if __name__ == "__main__":
             TableItem(Str("z"), Str("c")),
             TableItem(Str("b"), Ref([Str("a"), Ref([Str("10"), Str("z")])])),
         ])),
-        TableItem(Str("a"), Table([
+        TableItem(Str("a"), Ref([Str("e")])),
+        TableItem(Str("e"), Table([
             TableItem(Str("c"), Str("10")),
         ])),
         TableItem(Str("d"), Str("c")),
