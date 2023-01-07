@@ -72,8 +72,7 @@ func main() {
 	}
 
 	evaluatorStart := time.Now()
-	evaluator := evaluator.New(expr, logger)
-	evaluator.Evaluate()
+	evaluated := evaluator.New(expr, logger).Evaluate()
 	evaluatorEnd := float64(time.Since(evaluatorStart)) / float64(time.Millisecond)
 
 	fmt.Printf("\n========== EVALUATOR: %f ms ==========\n", evaluatorEnd)
@@ -83,7 +82,7 @@ func main() {
 	}
 
 	if !*silent {
-		fmt.Println(evaluator)
+		fmt.Println(evaluated)
 	}
 
 	if *memprofile != "" {

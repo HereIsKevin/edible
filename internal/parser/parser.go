@@ -360,6 +360,7 @@ func (parser *Parser) parseLiteral() Expr {
 	}
 }
 
+// TODO: Inline indexing of literals like arrays and tables.
 func (parser *Parser) parseRef() Expr {
 	keys := []Expr{}
 

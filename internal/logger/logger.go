@@ -55,6 +55,10 @@ func (logger *Logger) Add(message string, span Span) {
 	})
 }
 
+func (logger *Logger) AddError(err error) {
+	logger.errors = append(logger.errors, *err.(*Error))
+}
+
 func (logger *Logger) Save() LoggerState {
 	return LoggerState{index: len(logger.errors)}
 }
