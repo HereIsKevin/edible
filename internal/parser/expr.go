@@ -6,22 +6,20 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
-// TODO: Resolve line and character instead of span.
-// TODO: Create wrapping struct around interface to expose position.
 type Expr interface {
-	Span() logger.Span
+	Pos() logger.Pos
 	fmt.Stringer
 }
 
 // String
 
 type ExprStr struct {
-	Value     string
-	ValueSpan logger.Span
+	Value    string
+	Position logger.Pos
 }
 
-func (str *ExprStr) Span() logger.Span {
-	return str.ValueSpan
+func (str *ExprStr) Pos() logger.Pos {
+	return str.Position
 }
 
 func (str *ExprStr) String() string {
@@ -31,12 +29,12 @@ func (str *ExprStr) String() string {
 // Boolean
 
 type ExprBool struct {
-	Value     bool
-	ValueSpan logger.Span
+	Value    bool
+	Position logger.Pos
 }
 
-func (bool *ExprBool) Span() logger.Span {
-	return bool.ValueSpan
+func (bool *ExprBool) Pos() logger.Pos {
+	return bool.Position
 }
 
 func (bool *ExprBool) String() string {
@@ -46,12 +44,12 @@ func (bool *ExprBool) String() string {
 // Integer
 
 type ExprInt struct {
-	Value     int64
-	ValueSpan logger.Span
+	Value    int64
+	Position logger.Pos
 }
 
-func (int *ExprInt) Span() logger.Span {
-	return int.ValueSpan
+func (int *ExprInt) Pos() logger.Pos {
+	return int.Position
 }
 
 func (int *ExprInt) String() string {
@@ -61,12 +59,12 @@ func (int *ExprInt) String() string {
 // Float
 
 type ExprFloat struct {
-	Value     float64
-	ValueSpan logger.Span
+	Value    float64
+	Position logger.Pos
 }
 
-func (float *ExprFloat) Span() logger.Span {
-	return float.ValueSpan
+func (float *ExprFloat) Pos() logger.Pos {
+	return float.Position
 }
 
 func (float *ExprFloat) String() string {
@@ -94,19 +92,13 @@ func (modifier RefModifier) String() string {
 }
 
 type ExprRef struct {
-	Modifier     RefModifier
-	ModifierSpan logger.Span
-	Keys         []Expr
+	Modifier RefModifier
+	Keys     []Expr
+	Position logger.Pos
 }
 
-func (ref *ExprRef) Span() logger.Span {
-	span := ref.ModifierSpan
-
-	if len(ref.Keys) > 0 {
-		span.End = ref.Keys[len(ref.Keys)-1].Span().End
-	}
-
-	return span
+func (ref *ExprRef) Pos() logger.Pos {
+	return ref.Position
 }
 
 func (ref *ExprRef) String() string {
@@ -143,16 +135,13 @@ func (op UnaryOp) String() string {
 }
 
 type ExprUnary struct {
-	Op     UnaryOp
-	OpSpan logger.Span
-	Right  Expr
+	Op       UnaryOp
+	Right    Expr
+	Position logger.Pos
 }
 
-func (unary *ExprUnary) Span() logger.Span {
-	return logger.Span{
-		Start: unary.OpSpan.Start,
-		End:   unary.Right.Span().End,
-	}
+func (unary *ExprUnary) Pos() logger.Pos {
+	return unary.Position
 }
 
 func (unary *ExprUnary) String() string {
@@ -189,17 +178,14 @@ func (op BinaryOp) String() string {
 }
 
 type ExprBinary struct {
-	Left   Expr
-	Op     BinaryOp
-	OpSpan logger.Span
-	Right  Expr
+	Left     Expr
+	Op       BinaryOp
+	Right    Expr
+	Position logger.Pos
 }
 
-func (binary *ExprBinary) Span() logger.Span {
-	return logger.Span{
-		Start: binary.Left.Span().Start,
-		End:   binary.Right.Span().End,
-	}
+func (binary *ExprBinary) Pos() logger.Pos {
+	return binary.Position
 }
 
 func (binary *ExprBinary) String() string {
@@ -213,16 +199,12 @@ func (binary *ExprBinary) String() string {
 // Array
 
 type ExprArray struct {
-	OpenSpan  logger.Span
-	Items     []Expr
-	CloseSpan logger.Span
+	Items    []Expr
+	Position logger.Pos
 }
 
-func (array *ExprArray) Span() logger.Span {
-	return logger.Span{
-		Start: array.OpenSpan.Start,
-		End:   array.CloseSpan.End,
-	}
+func (array *ExprArray) Pos() logger.Pos {
+	return array.Position
 }
 
 func (array *ExprArray) String() string {
@@ -260,16 +242,12 @@ func (item *TableItem) String() string {
 }
 
 type ExprTable struct {
-	OpenSpan  logger.Span
-	Items     []*TableItem
-	CloseSpan logger.Span
+	Items    []*TableItem
+	Position logger.Pos
 }
 
-func (table *ExprTable) Span() logger.Span {
-	return logger.Span{
-		Start: table.OpenSpan.Start,
-		End:   table.CloseSpan.End,
-	}
+func (table *ExprTable) Pos() logger.Pos {
+	return table.Position
 }
 
 func (table *ExprTable) String() string {

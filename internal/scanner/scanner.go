@@ -24,6 +24,7 @@ type Scanner struct {
 
 	start   int
 	current int
+	line    int
 }
 
 func New(source string, logger *logger.Logger) *Scanner {
@@ -38,6 +39,7 @@ func New(source string, logger *logger.Logger) *Scanner {
 
 		start:   0,
 		current: 0,
+		line:    0,
 	}
 }
 
@@ -373,6 +375,11 @@ func (scanner *Scanner) advance() rune {
 	}
 
 	scanner.current += width
+
+	if codePoint == '\n' {
+		scanner.line += 1
+	}
+
 	return codePoint
 }
 
@@ -414,17 +421,18 @@ func (scanner *Scanner) desensitize() {
 	scanner.sensitivity++
 }
 
-func (scanner *Scanner) createSpan() logger.Span {
-	return logger.Span{
+func (scanner *Scanner) createPos() logger.Pos {
+	return logger.Pos{
 		Start: scanner.start,
 		End:   scanner.current,
+		Line:  scanner.line,
 	}
 }
 
 func (scanner *Scanner) addToken(kind TokenKind) {
 	scanner.tokens = append(scanner.tokens, Token{
 		Kind: kind,
-		Span: scanner.createSpan(),
+		Pos:  scanner.createPos(),
 	})
 }
 
@@ -432,12 +440,12 @@ func (scanner *Scanner) addLiteralToken(kind TokenKind, lexeme string) {
 	scanner.tokens = append(scanner.tokens, Token{
 		Kind:  kind,
 		Value: lexeme,
-		Span:  scanner.createSpan(),
+		Pos:   scanner.createPos(),
 	})
 }
 
 func (scanner *Scanner) addError(message string) {
-	scanner.logger.Add(message, scanner.createSpan())
+	scanner.logger.Add(message, scanner.createPos())
 }
 
 func isDigit(value rune) bool {

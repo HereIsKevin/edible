@@ -105,7 +105,7 @@ func (kind TokenKind) String() string {
 type Token struct {
 	Kind  TokenKind
 	Value string
-	Span  logger.Span
+	Pos   logger.Pos
 }
 
 func (token Token) String() string {

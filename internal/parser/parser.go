@@ -78,8 +78,8 @@ func (parser *Parser) parseBlock() Expr {
 func (parser *Parser) parseBlockArray() Expr {
 	items := []Expr{}
 
-	// Use span of first dash as opening span.
-	openSpan := parser.peek().Span
+	// Use position of first dash as start.
+	openPos := parser.peek().Pos
 
 	for parser.peek().Kind == scanner.TokenDash {
 		// Consume dash.
@@ -103,21 +103,24 @@ func (parser *Parser) parseBlockArray() Expr {
 		parser.advance()
 	}
 
-	// Use span from last token as closing span.
-	closeSpan := parser.previous().Span
+	// Use position of last token as end.
+	closePos := parser.previous().Pos
 
 	return &ExprArray{
-		OpenSpan:  openSpan,
-		Items:     items,
-		CloseSpan: closeSpan,
+		Items: items,
+		Position: logger.Pos{
+			Start: openPos.Start,
+			End:   closePos.End,
+			Line:  openPos.Line,
+		},
 	}
 }
 
 func (parser *Parser) parseBlockTable() Expr {
 	items := []*TableItem{}
 
-	// Use span of first key as opening span.
-	openSpan := parser.peek().Span
+	// Use position of first key as start.
+	openPos := parser.peek().Pos
 
 	for parser.peek().Kind == scanner.TokenStr ||
 		parser.peek().Kind == scanner.TokenIdent {
@@ -140,13 +143,16 @@ func (parser *Parser) parseBlockTable() Expr {
 		parser.advance()
 	}
 
-	// Use span from last token as closing span.
-	closeSpan := parser.previous().Span
+	// Use position of last token as end.
+	closePos := parser.previous().Pos
 
 	return &ExprTable{
-		OpenSpan:  openSpan,
-		Items:     items,
-		CloseSpan: closeSpan,
+		Items: items,
+		Position: logger.Pos{
+			Start: openPos.Start,
+			End:   closePos.End,
+			Line:  openPos.Line,
+		},
 	}
 }
 
@@ -173,17 +179,17 @@ loop:
 			break loop
 		}
 
-		opSpan := parser.advance().Span
+		pos := parser.advance().Pos
 		right := parser.parseFactor()
 		if right == nil {
 			return nil
 		}
 
 		expr = &ExprBinary{
-			Left:   expr,
-			Op:     op,
-			OpSpan: opSpan,
-			Right:  right,
+			Left:     expr,
+			Op:       op,
+			Right:    right,
+			Position: pos,
 		}
 	}
 
@@ -209,17 +215,17 @@ loop:
 			break loop
 		}
 
-		opSpan := parser.advance().Span
+		pos := parser.advance().Pos
 		right := parser.parseUnary()
 		if right == nil {
 			return nil
 		}
 
 		expr = &ExprBinary{
-			Left:   expr,
-			Op:     op,
-			OpSpan: opSpan,
-			Right:  right,
+			Left:     expr,
+			Op:       op,
+			Right:    right,
+			Position: pos,
 		}
 	}
 
@@ -238,16 +244,16 @@ func (parser *Parser) parseUnary() Expr {
 		return parser.parseLiteral()
 	}
 
-	opSpan := parser.advance().Span
+	pos := parser.advance().Pos
 	expr := parser.parseUnary()
 	if expr == nil {
 		return nil
 	}
 
 	return &ExprUnary{
-		Op:     op,
-		OpSpan: opSpan,
-		Right:  expr,
+		Op:       op,
+		Right:    expr,
+		Position: pos,
 	}
 }
 
@@ -258,8 +264,8 @@ func (parser *Parser) parseLiteral() Expr {
 		token := parser.advance()
 
 		return &ExprStr{
-			Value:     token.Value,
-			ValueSpan: token.Span,
+			Value:    token.Value,
+			Position: token.Pos,
 		}
 
 	// Identifier, should only be keywords
@@ -269,14 +275,14 @@ func (parser *Parser) parseLiteral() Expr {
 		switch token.Value {
 		case "true":
 			return &ExprBool{
-				Value:     true,
-				ValueSpan: token.Span,
+				Value:    true,
+				Position: token.Pos,
 			}
 
 		case "false":
 			return &ExprBool{
-				Value:     false,
-				ValueSpan: token.Span,
+				Value:    false,
+				Position: token.Pos,
 			}
 
 		default:
@@ -295,8 +301,8 @@ func (parser *Parser) parseLiteral() Expr {
 		}
 
 		return &ExprInt{
-			Value:     value,
-			ValueSpan: token.Span,
+			Value:    value,
+			Position: token.Pos,
 		}
 
 	// Float
@@ -309,8 +315,8 @@ func (parser *Parser) parseLiteral() Expr {
 		}
 
 		return &ExprFloat{
-			Value:     value,
-			ValueSpan: token.Span,
+			Value:    value,
+			Position: token.Pos,
 		}
 
 	// Grouping
@@ -356,7 +362,7 @@ func (parser *Parser) parseRef() Expr {
 
 	// Consume modifier.
 	modifierToken := parser.advance()
-	modifierSpan := modifierToken.Span
+	modifierPos := modifierToken.Pos
 	modifier := RefRelative
 
 	// Change to absolute refernce if there is an absolute modifier.
@@ -368,8 +374,8 @@ func (parser *Parser) parseRef() Expr {
 	if parser.peek().Kind == scanner.TokenIdent {
 		token := parser.advance()
 		keys = append(keys, &ExprStr{
-			Value:     token.Value,
-			ValueSpan: token.Span,
+			Value:    token.Value,
+			Position: token.Pos,
 		})
 	}
 
@@ -394,8 +400,8 @@ loop:
 			}
 
 			keys = append(keys, &ExprStr{
-				Value:     token.Value,
-				ValueSpan: token.Span,
+				Value:    token.Value,
+				Position: token.Pos,
 			})
 
 		// Expression key
@@ -424,17 +430,21 @@ loop:
 	}
 
 	return &ExprRef{
-		Modifier:     modifier,
-		ModifierSpan: modifierSpan,
-		Keys:         keys,
+		Modifier: modifier,
+		Keys:     keys,
+		Position: logger.Pos{
+			Start: modifierPos.Start,
+			End:   parser.previous().Pos.End,
+			Line:  modifierPos.Line,
+		},
 	}
 }
 
 func (parser *Parser) parseInlineArray() Expr {
 	items := []Expr{}
 
-	// Consume opening bracket and take span.
-	openSpan := parser.advance().Span
+	// Consume opening bracket and take position.
+	openPos := parser.advance().Pos
 
 	for parser.peek().Kind != scanner.TokenCloseBrack {
 		// Consume expression.
@@ -462,13 +472,16 @@ func (parser *Parser) parseInlineArray() Expr {
 		return nil
 	}
 
-	// Take span from closing bracket.
-	closeSpan := token.Span
+	// Take position from closing bracket.
+	closePos := token.Pos
 
 	return &ExprArray{
-		OpenSpan:  openSpan,
-		Items:     items,
-		CloseSpan: closeSpan,
+		Items: items,
+		Position: logger.Pos{
+			Start: openPos.Start,
+			End:   closePos.End,
+			Line:  openPos.Line,
+		},
 	}
 }
 
@@ -476,7 +489,7 @@ func (parser *Parser) parseInlineTable() Expr {
 	items := []*TableItem{}
 
 	// Consume opening brace.
-	openSpan := parser.advance().Span
+	openPos := parser.advance().Pos
 
 	for parser.peek().Kind != scanner.TokenCloseBrace {
 		// Consume table item.
@@ -504,13 +517,16 @@ func (parser *Parser) parseInlineTable() Expr {
 		return nil
 	}
 
-	// Take span from closing brace.
-	closeSpan := token.Span
+	// Take position from closing brace.
+	closePos := token.Pos
 
 	return &ExprTable{
-		OpenSpan:  openSpan,
-		Items:     items,
-		CloseSpan: closeSpan,
+		Items: items,
+		Position: logger.Pos{
+			Start: openPos.Start,
+			End:   closePos.End,
+			Line:  openPos.Line,
+		},
 	}
 }
 
@@ -525,8 +541,8 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 
 		// Create string expression for key.
 		key = &ExprStr{
-			Value:     token.Value,
-			ValueSpan: token.Span,
+			Value:    token.Value,
+			Position: token.Pos,
 		}
 	} else {
 		// Fatal, cannot recover from missing key.
@@ -605,5 +621,5 @@ func (parser *Parser) peekNext() *scanner.Token {
 }
 
 func (parser *Parser) addError(message string, token *scanner.Token) {
-	parser.logger.Add(message, token.Span)
+	parser.logger.Add(message, token.Pos)
 }

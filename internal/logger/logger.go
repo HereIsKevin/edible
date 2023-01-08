@@ -2,14 +2,15 @@ package logger
 
 import "log"
 
-type Span struct {
+type Pos struct {
 	Start int
 	End   int
+	Line  int
 }
 
 type Error struct {
 	Message string
-	Span    Span
+	Pos     Pos
 }
 
 func (err *Error) Error() string {
@@ -44,10 +45,10 @@ func (logger *Logger) Log() bool {
 	return true
 }
 
-func (logger *Logger) Add(message string, span Span) {
+func (logger *Logger) Add(message string, pos Pos) {
 	logger.errors = append(logger.errors, Error{
 		Message: message,
-		Span:    span,
+		Pos:     pos,
 	})
 }
 
