@@ -7,11 +7,6 @@ import (
 	"github.com/HereIsKevin/edible/internal/scanner"
 )
 
-type parserState struct {
-	index  int
-	logger logger.LoggerState
-}
-
 type Parser struct {
 	tokens  scanner.Tokens
 	logger  *logger.Logger
@@ -62,8 +57,17 @@ func (parser *Parser) parseBlock() Expr {
 		return parser.parseBlockArray()
 
 	// Block table
-	case scanner.TokenStr, scanner.TokenIdent, scanner.TokenOpenBrack:
-		return parser.parseBlockTable()
+	case scanner.TokenStr, scanner.TokenIdent:
+		if parser.peekNext().Kind == scanner.TokenColon ||
+			parser.peekNext().Kind == scanner.TokenLess {
+
+			// Only parse as block table if the key is followed by a colon or inheritance
+			// operator. Otherwise it must be an inline expression.
+			return parser.parseBlockTable()
+		}
+
+		// Go on to inline expression otherwise.
+		fallthrough
 
 	default:
 		// Descend to inline expressions.
@@ -115,25 +119,12 @@ func (parser *Parser) parseBlockTable() Expr {
 	// Use span of first key as opening span.
 	openSpan := parser.peek().Span
 
-	// Save parser state.
-	state := parser.save()
-
 	for parser.peek().Kind == scanner.TokenStr ||
-		parser.peek().Kind == scanner.TokenIdent ||
-		parser.peek().Kind == scanner.TokenOpenBrack {
+		parser.peek().Kind == scanner.TokenIdent {
 
 		// Consume table item.
 		item := parser.parseTableItem(parser.parseBlock)
 		if item == nil {
-			// Backtrace if this is the first failure.
-			if len(items) == 0 {
-				// Restore parser state.
-				parser.restore(state)
-
-				// Descend to inline expressions.
-				return parser.parseInline()
-			}
-
 			return nil
 		}
 
@@ -526,35 +517,20 @@ func (parser *Parser) parseInlineTable() Expr {
 func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 	var key Expr
 
-	switch parser.peek().Kind {
-	// Literal key
-	case scanner.TokenStr, scanner.TokenIdent:
+	if parser.peek().Kind == scanner.TokenStr ||
+		parser.peek().Kind == scanner.TokenIdent {
+
+		// Consume the key token.
 		token := parser.advance()
+
+		// Create string expression for key.
 		key = &ExprStr{
 			Value:     token.Value,
 			ValueSpan: token.Span,
 		}
-
-	// Expression key
-	case scanner.TokenOpenBrack:
-		// Consume opening bracket.
-		parser.advance()
-
-		// Consume expression and exit if fatal.
-		key = parser.parseInline()
-		if key == nil {
-			return nil
-		}
-
-		// Consume closing bracket.
-		token := parser.consume(scanner.TokenCloseBrack, "Expect ']' after expresion key.")
-		if token == nil {
-			return nil
-		}
-
-	default:
+	} else {
 		// Fatal, cannot recover from missing key.
-		parser.addError("Expect string, identifier, or expression for key.", parser.peek())
+		parser.addError("Expect string or identifier for key.", parser.peek())
 		return nil
 	}
 
@@ -620,16 +596,12 @@ func (parser *Parser) peek() *scanner.Token {
 	return &parser.tokens[parser.current]
 }
 
-func (parser *Parser) save() parserState {
-	return parserState{
-		index:  parser.current,
-		logger: parser.logger.Save(),
+func (parser *Parser) peekNext() *scanner.Token {
+	if len(parser.tokens) > parser.current+1 {
+		return &parser.tokens[parser.current+1]
 	}
-}
 
-func (parser *Parser) restore(state parserState) {
-	parser.current = state.index
-	parser.logger.Restore(state.logger)
+	return &parser.tokens[len(parser.tokens)-1]
 }
 
 func (parser *Parser) addError(message string, token *scanner.Token) {
