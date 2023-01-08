@@ -122,17 +122,17 @@ func (token Token) String() string {
 type Tokens []Token
 
 func (tokens Tokens) String() string {
-	indent := 0
+	depth := 0
 	builder := strings.Builder{}
 
 	for index, token := range tokens {
 		switch token.Kind {
 		case TokenOpenParen, TokenOpenBrack, TokenOpenBrace, TokenOpenBlock:
-			indent += 1
-			builder.WriteString(fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent)))
+			depth += 1
+			builder.WriteString(fmt.Sprintf("%s\n%s", token, indent(depth)))
 		case TokenCloseParen, TokenCloseBrack, TokenCloseBrace, TokenCloseBlock:
-			indent -= 1
-			builder.WriteString(fmt.Sprintf("\n%s%s ", strings.Repeat("    ", indent), token))
+			depth -= 1
+			builder.WriteString(fmt.Sprintf("\n%s%s ", indent(depth), token))
 		case TokenEOF, TokenComma, TokenNewline:
 			if len(tokens) > index+1 {
 				kind := tokens[index+1].Kind
@@ -147,11 +147,15 @@ func (tokens Tokens) String() string {
 				}
 			}
 
-			builder.WriteString(fmt.Sprintf("%s\n%s", token, strings.Repeat("    ", indent)))
+			builder.WriteString(fmt.Sprintf("%s\n%s", token, indent(depth)))
 		default:
 			builder.WriteString(fmt.Sprintf("%s ", token.String()))
 		}
 	}
 
 	return strings.TrimSpace(builder.String())
+}
+
+func indent(depth int) string {
+	return strings.Repeat("    ", depth)
 }

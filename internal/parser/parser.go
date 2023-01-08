@@ -587,7 +587,10 @@ func (parser *Parser) isEOF() bool {
 	return parser.peek().Kind == scanner.TokenEOF
 }
 
-func (parser *Parser) consume(expected scanner.TokenKind, message string) *scanner.Token {
+func (parser *Parser) consume(
+	expected scanner.TokenKind,
+	message string,
+) *scanner.Token {
 	if parser.peek().Kind == expected {
 		return parser.advance()
 	}
