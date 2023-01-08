@@ -7,7 +7,6 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
-// TODO: Resolve line and character.
 // TODO: Ternary operator.
 // TODO: Bitwise operators.
 // TODO: Boolean operators.
@@ -211,7 +210,6 @@ func (scanner *Scanner) scanComment() {
 	}
 }
 
-// TODO: Maybe support tabs as indentation?
 func (scanner *Scanner) scanBlock(previous rune) {
 	indent := 0
 	newline := false

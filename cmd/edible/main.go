@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -25,12 +24,14 @@ func main() {
 	if *cpuprofile != "" {
 		file, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 		defer file.Close()
 
 		if err := pprof.StartCPUProfile(file); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -38,7 +39,8 @@ func main() {
 	path := flag.Arg(0)
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	source := string(contents)
@@ -88,7 +90,8 @@ func main() {
 
 	value, err := json.MarshalIndent(evaluated, "", "    ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	if !*silent {
@@ -98,13 +101,15 @@ func main() {
 	if *memprofile != "" {
 		file, err := os.Create(*memprofile)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 		defer file.Close()
 
 		runtime.GC()
 		if err := pprof.WriteHeapProfile(file); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 }

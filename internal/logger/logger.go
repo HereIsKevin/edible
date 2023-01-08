@@ -1,6 +1,6 @@
 package logger
 
-import "log"
+import "fmt"
 
 type Pos struct {
 	Start int
@@ -31,13 +31,14 @@ func New(source string) *Logger {
 
 func (logger *Logger) Log() bool {
 	if len(logger.errors) == 0 {
+		// Did not have errors.
 		return false
 	}
 
+	// Log every error.
 	for _, err := range logger.errors {
-		// TODO: Prettier logging.
-		log.Printf(
-			"[Line %d] Error at `%s`: %s ",
+		fmt.Printf(
+			"[Line %d] Error at '%s': %s ",
 			err.Pos.Line,
 			logger.source[err.Pos.Start:err.Pos.End],
 			err.Message,
@@ -47,6 +48,7 @@ func (logger *Logger) Log() bool {
 	// Clear errors.
 	logger.errors = nil
 
+	// Had errors.
 	return true
 }
 
