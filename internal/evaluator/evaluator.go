@@ -439,8 +439,15 @@ func (evaluator *Evaluator) evaluateTableValue(
 		return nil
 	}
 
-	evaluator.evaluateTableKeys(value)
-	evaluator.evaluateTableKeys(parent)
+    // Make sure the value keys are evaluated.
+	if err := evaluator.evaluateTableKeys(value); err != nil {
+        return err
+    }
+
+    // Make sure the parent keys are evaluated.
+	if err := evaluator.evaluateTableKeys(parent); err != nil {
+        return err
+    }
 
 	valueData := evaluator.tableDatas[value]
 	parentData := evaluator.tableDatas[parent]
