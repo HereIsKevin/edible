@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -47,7 +48,11 @@ func main() {
 	tokens := scanner.New(source, logger).Scan()
 	scannerEnd := float64(time.Since(scannerStart)) / float64(time.Millisecond)
 
-	fmt.Printf("========== SCANNER: %f ms (%d tokens) ==========\n", scannerEnd, len(tokens))
+	fmt.Printf(
+		"========== SCANNER: %f ms (%d tokens) ==========\n",
+		scannerEnd,
+		len(tokens),
+	)
 
 	if logger.Log() {
 		os.Exit(1)
@@ -81,8 +86,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	value, err := json.MarshalIndent(evaluated, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if !*silent {
-		fmt.Println(evaluated)
+		fmt.Println(string(value))
 	}
 
 	if *memprofile != "" {
