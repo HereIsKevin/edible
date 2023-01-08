@@ -222,26 +222,19 @@ func (array *ExprArray) String() string {
 // Table
 
 type TableItem struct {
-	Key    *ExprStr
-	Parent Expr
-	Value  Expr
+	Key   *ExprStr
+	Value Expr
 }
 
 func (item *TableItem) String() string {
-	parent := "nil"
-
-	if item.Parent != nil {
-		parent = item.Parent.String()
-	}
-
 	return logger.DebugStruct("", []logger.DebugField{
 		{Key: "Key", Value: item.Key.String()},
-		{Key: "Parent", Value: parent},
 		{Key: "Value", Value: item.Value.String()},
 	})
 }
 
 type ExprTable struct {
+	Parent   Expr
 	Items    []*TableItem
 	Position logger.Pos
 }
@@ -251,6 +244,12 @@ func (table *ExprTable) Pos() logger.Pos {
 }
 
 func (table *ExprTable) String() string {
+	parent := "nil"
+
+	if table.Parent != nil {
+		parent = table.Parent.String()
+	}
+
 	items := []string{}
 
 	for _, item := range table.Items {
@@ -258,6 +257,7 @@ func (table *ExprTable) String() string {
 	}
 
 	return logger.DebugStruct("Table", []logger.DebugField{
+		{Key: "Parent", Value: parent},
 		{Key: "Items", Value: logger.DebugSlice(items)},
 	})
 }

@@ -122,6 +122,22 @@ func (parser *Parser) parseBlockTable() Expr {
 	// Use position of first key as start.
 	openPos := parser.peek().Pos
 
+	// Parent of table.
+	var parent Expr
+
+	// Check for parent and consume if found.
+	if parser.peek().Kind == scanner.TokenLess {
+		parent = parser.parseTableParent(parser.parseBlock)
+
+		// Finished if there is no newline after the parent.
+		if parser.peek().Kind != scanner.TokenNewline {
+			goto end
+		}
+
+		// Consume newline and move on to keys otherwise.
+		parser.advance()
+	}
+
 	for parser.peek().Kind == scanner.TokenStr ||
 		parser.peek().Kind == scanner.TokenIdent {
 
@@ -143,11 +159,13 @@ func (parser *Parser) parseBlockTable() Expr {
 		parser.advance()
 	}
 
+end:
 	// Use position of last token as end.
 	closePos := parser.previous().Pos
 
 	return &ExprTable{
-		Items: items,
+		Parent: parent,
+		Items:  items,
 		Position: logger.Pos{
 			Start: openPos.Start,
 			End:   closePos.End,
@@ -491,6 +509,23 @@ func (parser *Parser) parseInlineTable() Expr {
 	// Consume opening brace.
 	openPos := parser.advance().Pos
 
+	// Parent of table.
+	var parent Expr
+
+	// Check for parent and consume if found.
+	if parser.peek().Kind == scanner.TokenLess {
+		parent = parser.parseTableParent(parser.parseInline)
+
+		// Attempt to consume comma after parent if not closing brace.
+		if parser.peek().Kind != scanner.TokenCloseBrace {
+			// Consume comma.
+			token := parser.consume(scanner.TokenComma, "Expect ',' after parent.")
+			if token == nil {
+				return nil
+			}
+		}
+	}
+
 	for parser.peek().Kind != scanner.TokenCloseBrace {
 		// Consume table item.
 		item := parser.parseTableItem(parser.parseInline)
@@ -521,13 +556,31 @@ func (parser *Parser) parseInlineTable() Expr {
 	closePos := token.Pos
 
 	return &ExprTable{
-		Items: items,
+		Parent: parent,
+		Items:  items,
 		Position: logger.Pos{
 			Start: openPos.Start,
 			End:   closePos.End,
 			Line:  openPos.Line,
 		},
 	}
+}
+
+func (parser *Parser) parseTableParent(valueParser func() Expr) Expr {
+	// Consume inheritance key.
+	token := parser.consume(scanner.TokenLess, "Expect '<' for inheritance key.")
+	if token == nil {
+		return nil
+	}
+
+	// Consume colon separator.
+	token = parser.consume(scanner.TokenColon, "Expect ':' after inheritance key.")
+	if token == nil {
+		return nil
+	}
+
+	// Consume value expression.
+	return valueParser()
 }
 
 func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
@@ -550,20 +603,6 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 		return nil
 	}
 
-	var parent Expr
-
-	// Check for parent and consume if found.
-	if parser.peek().Kind == scanner.TokenLess {
-		// Consume inheritance operator.
-		parser.advance()
-
-		// Consume parent expression.
-		parent = parser.parseInline()
-		if parent == nil {
-			return nil
-		}
-	}
-
 	// Consume colon separator.
 	token := parser.consume(scanner.TokenColon, "Expect ':' beween key and value.")
 	if token == nil {
@@ -577,9 +616,8 @@ func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
 	}
 
 	return &TableItem{
-		Key:    key,
-		Parent: parent,
-		Value:  value,
+		Key:   key,
+		Value: value,
 	}
 }
 
