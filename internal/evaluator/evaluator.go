@@ -233,6 +233,9 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 			expr = array[indexInner].value
 
 		// TODO: Prove that the initial table is already merged.
+		// TODO: Fix potential bug when using '.' and missing merge.
+		// TODO: Move parent from table item to table.
+		// TODO: New syntax for merging? :(
 		case *parser.ExprTable:
 			// Make sure the key is a string.
 			key, ok := keyExpr.(*parser.ExprStr)
@@ -439,15 +442,15 @@ func (evaluator *Evaluator) evaluateTableValue(
 		return nil
 	}
 
-    // Make sure the value keys are evaluated.
+	// Make sure the value keys are evaluated.
 	if err := evaluator.evaluateTableKeys(value); err != nil {
-        return err
-    }
+		return err
+	}
 
-    // Make sure the parent keys are evaluated.
+	// Make sure the parent keys are evaluated.
 	if err := evaluator.evaluateTableKeys(parent); err != nil {
-        return err
-    }
+		return err
+	}
 
 	valueData := evaluator.tableDatas[value]
 	parentData := evaluator.tableDatas[parent]
