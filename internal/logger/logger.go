@@ -36,7 +36,12 @@ func (logger *Logger) Log() bool {
 
 	for _, err := range logger.errors {
 		// TODO: Prettier logging.
-		log.Println(err)
+		log.Printf(
+			"[Line %d] Error at `%s`: %s ",
+			err.Pos.Line,
+			logger.source[err.Pos.Start:err.Pos.End],
+			err.Message,
+		)
 	}
 
 	// Clear errors.
