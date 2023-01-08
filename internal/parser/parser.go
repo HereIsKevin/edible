@@ -531,7 +531,7 @@ func (parser *Parser) parseInlineTable() Expr {
 }
 
 func (parser *Parser) parseTableItem(valueParser func() Expr) *TableItem {
-	var key Expr
+	var key *ExprStr
 
 	if parser.peek().Kind == scanner.TokenStr ||
 		parser.peek().Kind == scanner.TokenIdent {

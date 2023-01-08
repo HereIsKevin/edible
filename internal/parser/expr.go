@@ -222,7 +222,7 @@ func (array *ExprArray) String() string {
 // Table
 
 type TableItem struct {
-	Key    Expr
+	Key    *ExprStr
 	Parent Expr
 	Value  Expr
 }
