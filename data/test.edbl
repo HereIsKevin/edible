@@ -1,0 +1,11 @@
+
+{
+  ["a"] < $inline: 10, b: 1111, # welp
+  inline: [1, 2 / (10 + 10.0001), 3],
+  backtrace: [1,],
+  item: .string,
+  string: "123",
+  number: 100.01,
+  nested: { a: 10, [.c]: true, "c": [1 + -1.1 * 1] },
+  boolean: true
+}

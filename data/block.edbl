@@ -1,0 +1,15 @@
+["table"]:
+  string: "123"
+  number: 100.01
+  boolean: true
+  list: # 2
+    - "thing.hi[1][string y]" # 6
+    -
+      - $table.string # 4 then 6
+    - abc: 20 # 4 then 6
+      asdflsf: 10 # 6
+      inline: [1, 2, 3] # 6
+      backtrace: [1]
+
+  more: "blah"
+  other: { ["a"]: 10, b: 1111 }

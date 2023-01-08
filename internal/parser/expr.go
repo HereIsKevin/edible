@@ -6,6 +6,8 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
+// TODO: Resolve line and character instead of span.
+// TODO: Create wrapping struct around interface to expose position.
 type Expr interface {
 	Span() logger.Span
 	fmt.Stringer

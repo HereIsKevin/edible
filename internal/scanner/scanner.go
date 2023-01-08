@@ -7,6 +7,7 @@ import (
 	"github.com/HereIsKevin/edible/internal/logger"
 )
 
+// TODO: Resolve line and character.
 // TODO: Ternary operator.
 // TODO: Bitwise operators.
 // TODO: Boolean operators.
