@@ -11,7 +11,7 @@ import (
 // TODO: Bitwise operators.
 // TODO: Boolean operators.
 // TODO: Floor division operator.
-// TODO: Basic builtin functions.
+// TODO: Basic builtin functions and custom functions.
 type Scanner struct {
 	source string
 	logger *logger.Logger
@@ -294,6 +294,7 @@ loop:
 // TODO: Multiline strings.
 // TODO: Literal strings.
 // TODO: Escapes codes.
+// TODO: String interpolation.
 func (scanner *Scanner) scanString() {
 	for scanner.peek() != '"' && !scanner.isEOF() {
 		if scanner.peek() == '\n' {
