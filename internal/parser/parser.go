@@ -57,12 +57,10 @@ func (parser *Parser) parseBlock() Expr {
 		return parser.parseBlockArray()
 
 	// Block table
-	case scanner.TokenStr, scanner.TokenIdent:
-		if parser.peekNext().Kind == scanner.TokenColon ||
-			parser.peekNext().Kind == scanner.TokenLess {
-
-			// Only parse as block table if the key is followed by a colon or inheritance
-			// operator. Otherwise it must be an inline expression.
+	case scanner.TokenStr, scanner.TokenIdent, scanner.TokenLess:
+		if parser.peekNext().Kind == scanner.TokenColon {
+			// Only parse as block table if the key is followed by a colon. Otherwise it
+			// must be an inline expression.
 			return parser.parseBlockTable()
 		}
 
