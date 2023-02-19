@@ -280,17 +280,299 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 }
 
 func (evaluator *Evaluator) evaluateUnary(unary *parser.ExprUnary) error {
-	return &logger.Error{
-		Message: "Unary expressions are not supported.",
-		Pos:     unary.Pos(),
+	data := evaluator.unaryDatas[unary]
+
+	// Exit if already evaluated.
+	if data.evaluated {
+		return nil
 	}
+
+	// Unwrap expression.
+	expr, err := evaluator.unwrap(unary.Right)
+	if err != nil {
+		return err
+	}
+
+	switch unary.Op {
+	case parser.UnaryPlus:
+		switch current := expr.(type) {
+		case *parser.ExprInt:
+			data.value = &parser.ExprInt{
+				Value:    current.Value,
+				Position: unary.Right.Pos(),
+			}
+
+		case *parser.ExprFloat:
+			data.value = &parser.ExprFloat{
+				Value:    current.Value,
+				Position: unary.Right.Pos(),
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     unary.Right.Pos(),
+			}
+		}
+
+	case parser.UnaryMinus:
+		switch current := expr.(type) {
+		case *parser.ExprInt:
+			data.value = &parser.ExprInt{
+				Value:    -current.Value,
+				Position: unary.Right.Pos(),
+			}
+
+		case *parser.ExprFloat:
+			data.value = &parser.ExprFloat{
+				Value:    -current.Value,
+				Position: unary.Right.Pos(),
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     unary.Right.Pos(),
+			}
+		}
+	}
+
+	return nil
 }
 
 func (evaluator *Evaluator) evaluateBinary(binary *parser.ExprBinary) error {
-	return &logger.Error{
-		Message: "Binary expressions are not supported.",
-		Pos:     binary.Pos(),
+	data := evaluator.binaryDatas[binary]
+
+	// Exit if already evaluated.
+	if data.evaluated {
+		return nil
 	}
+
+	// Unwrap left.
+	leftExpr, err := evaluator.unwrap(binary.Left)
+	if err != nil {
+		return err
+	}
+
+	// Unwrap right.
+	rightExpr, err := evaluator.unwrap(binary.Right)
+	if err != nil {
+		return err
+	}
+
+	position := logger.Pos{
+		Start: binary.Left.Pos().Start,
+		End:   binary.Right.Pos().End,
+		Line:  binary.Left.Pos().Line,
+	}
+
+	switch binary.Op {
+	case parser.BinaryPlus:
+		switch left := leftExpr.(type) {
+		case *parser.ExprInt:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprInt{
+					Value:    left.Value + right.Value,
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    float64(left.Value) + right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		case *parser.ExprFloat:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value + float64(right.Value),
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value + right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     binary.Left.Pos(),
+			}
+		}
+
+	case parser.BinaryMinus:
+		switch left := leftExpr.(type) {
+		case *parser.ExprInt:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprInt{
+					Value:    left.Value - right.Value,
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    float64(left.Value) - right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		case *parser.ExprFloat:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value - float64(right.Value),
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value - right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     binary.Left.Pos(),
+			}
+		}
+
+	case parser.BinaryStar:
+		switch left := leftExpr.(type) {
+		case *parser.ExprInt:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprInt{
+					Value:    left.Value * right.Value,
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    float64(left.Value) * right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		case *parser.ExprFloat:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value * float64(right.Value),
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value * right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     binary.Left.Pos(),
+			}
+		}
+
+	case parser.BinarySlash:
+		switch left := leftExpr.(type) {
+		case *parser.ExprInt:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprInt{
+					Value:    left.Value / right.Value,
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    float64(left.Value) / right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		case *parser.ExprFloat:
+			switch right := rightExpr.(type) {
+			case *parser.ExprInt:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value / float64(right.Value),
+					Position: position,
+				}
+
+			case *parser.ExprFloat:
+				data.value = &parser.ExprFloat{
+					Value:    left.Value / right.Value,
+					Position: position,
+				}
+
+			default:
+				return &logger.Error{
+					Message: "Expect integer or float.",
+					Pos:     binary.Right.Pos(),
+				}
+			}
+
+		default:
+			return &logger.Error{
+				Message: "Expect integer or float.",
+				Pos:     binary.Left.Pos(),
+			}
+		}
+	}
+
+	return nil
 }
 
 func (evaluator *Evaluator) evaluateArrayIndices(array *parser.ExprArray) {
