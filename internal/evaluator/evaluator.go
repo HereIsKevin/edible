@@ -150,10 +150,14 @@ func (evaluator *Evaluator) evaluate(expr parser.Expr) error {
 		}
 
 	case *parser.ExprUnary:
-		panic("evaluateUnary is not implemented")
+		if err := evaluator.evaluateUnary(current); err != nil {
+			return err
+		}
 
 	case *parser.ExprBinary:
-		panic("evaluateBinary is not implemented")
+		if err := evaluator.evaluateBinary(current); err != nil {
+			return err
+		}
 
 	case *parser.ExprArray:
 		if err := evaluator.evaluateArray(current); err != nil {
