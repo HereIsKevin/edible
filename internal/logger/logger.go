@@ -38,7 +38,7 @@ func (logger *Logger) Log() bool {
 	// Log every error.
 	for _, err := range logger.errors {
 		fmt.Printf(
-			"[Line %d] Error at '%s': %s ",
+			"[Line %d] Error at '%s': %s\n",
 			err.Pos.Line,
 			logger.source[err.Pos.Start:err.Pos.End],
 			err.Message,
