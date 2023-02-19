@@ -1,5 +1,3 @@
-// TODO: Check for potential issues with nil.
-
 package evaluator
 
 import (
@@ -18,24 +16,18 @@ type opData struct {
 	evaluated bool
 }
 
-type arrayDataItem struct {
+type itemData struct {
 	value     parser.Expr
 	evaluated bool
 }
 
 type arrayData struct {
-	value     []*arrayDataItem
-	evaluated bool
-}
-
-type tableDataItem struct {
-	parent    parser.Expr
-	value     parser.Expr
+	items     []*itemData
 	evaluated bool
 }
 
 type tableData struct {
-	value     map[string]*tableDataItem
+	items     map[string]*itemData
 	evaluated bool
 }
 
@@ -74,7 +66,12 @@ func (evaluator *Evaluator) Evaluate() any {
 		evaluator.logger.AddError(err)
 	}
 
-	return evaluator.resolve(evaluator.expr)
+	value, err := evaluator.resolve(evaluator.expr)
+	if err != nil {
+		evaluator.logger.AddError(err)
+	}
+
+	return value
 }
 
 func (evaluator *Evaluator) bind(expr parser.Expr, parent parser.Expr) {
@@ -117,7 +114,7 @@ func (evaluator *Evaluator) bind(expr parser.Expr, parent parser.Expr) {
 
 	case *parser.ExprArray:
 		evaluator.arrayDatas[current] = &arrayData{
-			value:     []*arrayDataItem{},
+			items:     []*itemData{},
 			evaluated: false,
 		}
 
@@ -127,17 +124,17 @@ func (evaluator *Evaluator) bind(expr parser.Expr, parent parser.Expr) {
 
 	case *parser.ExprTable:
 		evaluator.tableDatas[current] = &tableData{
-			value:     map[string]*tableDataItem{},
+			items:     map[string]*itemData{},
 			evaluated: false,
 		}
 
-		for _, item := range current.Items {
-			evaluator.bind(item.Key, parent)
-			evaluator.bind(item.Value, parent)
+		if current.Parent != nil {
+			evaluator.bind(current.Parent, current)
+		}
 
-			if item.Parent != nil {
-				evaluator.bind(item.Parent, parent)
-			}
+		for _, item := range current.Items {
+			evaluator.bind(item.Key, current)
+			evaluator.bind(item.Value, current)
 		}
 	}
 }
@@ -183,7 +180,7 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 	// Mark reference as evaluated.
 	data.evaluated = true
 
-	// Start from the root expression.
+	// Start from root expression.
 	expr := data.root
 
 	for _, rawKey := range ref.Keys {
@@ -201,7 +198,7 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 
 		switch current := currentExpr.(type) {
 		case *parser.ExprArray:
-			// Make sure the index is a integer.
+			// Make sure the key is an integer.
 			index, ok := keyExpr.(*parser.ExprInt)
 			if !ok {
 				return &logger.Error{
@@ -213,29 +210,26 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 			// Make sure array indices are evaluated.
 			evaluator.evaluateArrayIndices(current)
 
-			array := evaluator.arrayDatas[current].value
-			indexInner := int(index.Value)
+			items := evaluator.arrayDatas[current].items
 
 			// Make sure index is in bounds.
-			if len(array) <= indexInner {
+			if int64(len(items)) <= index.Value {
 				return &logger.Error{
 					Message: "Index out of bounds.",
 					Pos:     rawKey.Pos(),
 				}
 			}
 
+			item := items[index.Value]
+
 			// Evaluate the item.
-			if err := evaluator.evaluateArrayValue(current, indexInner); err != nil {
+			if err := evaluator.evaluateItem(item); err != nil {
 				return err
 			}
 
 			// Repeat with the item value.
-			expr = array[indexInner].value
+			expr = item.value
 
-		// TODO: Prove that the initial table is already merged.
-		// TODO: Fix potential bug when using '.' and missing merge.
-		// TODO: Move parent from table item to table.
-		// TODO: New syntax for merging? :(
 		case *parser.ExprTable:
 			// Make sure the key is a string.
 			key, ok := keyExpr.(*parser.ExprStr)
@@ -246,13 +240,13 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 				}
 			}
 
-			// Make sure the table keys are evaluated.
+			// Make sure table keys are evaluated.
 			if err := evaluator.evaluateTableKeys(current); err != nil {
 				return err
 			}
 
-			// Get the item from the table.
-			item, ok := evaluator.tableDatas[current].value[key.Value]
+			// Get item from table if possible.
+			item, ok := evaluator.tableDatas[current].items[key.Value]
 			if !ok {
 				return &logger.Error{
 					Message: "Key not found.",
@@ -260,8 +254,8 @@ func (evaluator *Evaluator) evaluateRef(ref *parser.ExprRef) error {
 				}
 			}
 
-			// Evaluate the item.
-			if err := evaluator.evaluateTableValue(current, key.Value); err != nil {
+			// Evalute the item.
+			if err := evaluator.evaluateItem(item); err != nil {
 				return err
 			}
 
@@ -308,49 +302,18 @@ func (evaluator *Evaluator) evaluateArrayIndices(array *parser.ExprArray) {
 
 	for _, item := range array.Items {
 		// Create entry in array.
-		data.value = append(data.value, &arrayDataItem{
+		data.items = append(data.items, &itemData{
 			value:     item,
 			evaluated: false,
 		})
 	}
 }
 
-func (evaluator *Evaluator) evaluateArrayValue(
-	array *parser.ExprArray,
-	index int,
-) error {
-	data := evaluator.arrayDatas[array]
-	item := data.value[index]
-
-	// Exit if item is already evaluated.
-	if item.evaluated {
-		return nil
-	}
-
-	// Mark item as evaluated.
-	item.evaluated = true
-
-	// Evaluate value
-	if err := evaluator.evaluate(item.value); err != nil {
-		return err
-	}
-
-	// Unwrap value.
-	valueExpr, err := evaluator.unwrap(item.value)
-	if err != nil {
-		return err
-	}
-
-	item.value = valueExpr
-
-	return nil
-}
-
 func (evaluator *Evaluator) evaluateArray(array *parser.ExprArray) error {
 	evaluator.evaluateArrayIndices(array)
 
-	for index := range evaluator.arrayDatas[array].value {
-		if err := evaluator.evaluateArrayValue(array, index); err != nil {
+	for _, item := range evaluator.arrayDatas[array].items {
+		if err := evaluator.evaluateItem(item); err != nil {
 			return err
 		}
 	}
@@ -371,7 +334,7 @@ func (evaluator *Evaluator) evaluateTableKeys(table *parser.ExprTable) error {
 
 	for _, item := range table.Items {
 		// Check for duplicate keys.
-		if _, ok := data.value[item.Key.Value]; ok {
+		if _, ok := data.items[item.Key.Value]; ok {
 			return &logger.Error{
 				Message: "Duplicate key in table.",
 				Pos:     item.Key.Pos(),
@@ -379,23 +342,64 @@ func (evaluator *Evaluator) evaluateTableKeys(table *parser.ExprTable) error {
 		}
 
 		// Create entry in table.
-		data.value[item.Key.Value] = &tableDataItem{
-			parent:    item.Parent,
+		data.items[item.Key.Value] = &itemData{
 			value:     item.Value,
 			evaluated: false,
+		}
+	}
+
+	// Exit if there is no parent.
+	if table.Parent == nil {
+		return nil
+	}
+
+	// Unwrap parent.
+	parentExpr, err := evaluator.unwrap(table.Parent)
+	if err != nil {
+		return err
+	}
+
+	// Make sure the parent is a table.
+	parent, ok := parentExpr.(*parser.ExprTable)
+	if !ok {
+		return &logger.Error{
+			Message: "Expect table for parent.",
+			Pos:     table.Parent.Pos(),
+		}
+	}
+
+	// Make sure the parent keys are evaluated.
+	if err := evaluator.evaluateTableKeys(parent); err != nil {
+		return err
+	}
+
+	parentData := evaluator.tableDatas[parent]
+
+	for key, item := range parentData.items {
+		// Merge item from parent if key is not already there.
+		if _, ok := data.items[key]; !ok {
+			data.items[key] = item
 		}
 	}
 
 	return nil
 }
 
-func (evaluator *Evaluator) evaluateTableValue(
-	table *parser.ExprTable,
-	key string,
-) error {
-	data := evaluator.tableDatas[table]
-	item := data.value[key]
+func (evaluator *Evaluator) evaluateTable(table *parser.ExprTable) error {
+	if err := evaluator.evaluateTableKeys(table); err != nil {
+		return err
+	}
 
+	for _, item := range evaluator.tableDatas[table].items {
+		if err := evaluator.evaluateItem(item); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (evaluator *Evaluator) evaluateItem(item *itemData) error {
 	// Exit if item is already evaluated.
 	if item.evaluated {
 		return nil
@@ -403,19 +407,6 @@ func (evaluator *Evaluator) evaluateTableValue(
 
 	// Mark item as evaluated.
 	item.evaluated = true
-
-	// Evaluate parent.
-	if err := evaluator.evaluate(item.parent); err != nil {
-		return err
-	}
-
-	// Unwrap parent.
-	parentExpr, err := evaluator.unwrap(item.parent)
-	if err != nil {
-		return err
-	}
-
-	item.parent = parentExpr
 
 	// Evaluate value.
 	if err := evaluator.evaluate(item.value); err != nil {
@@ -428,146 +419,103 @@ func (evaluator *Evaluator) evaluateTableValue(
 		return err
 	}
 
+	// Replace value with unwraped value.
 	item.value = valueExpr
 
-	// Make sure the value is a table.
-	value, ok := item.value.(*parser.ExprTable)
-	if !ok {
-		return nil
-	}
-
-	// Make sure the parent is a table.
-	parent, ok := item.parent.(*parser.ExprTable)
-	if !ok {
-		return nil
-	}
-
-	// Make sure the value keys are evaluated.
-	if err := evaluator.evaluateTableKeys(value); err != nil {
-		return err
-	}
-
-	// Make sure the parent keys are evaluated.
-	if err := evaluator.evaluateTableKeys(parent); err != nil {
-		return err
-	}
-
-	valueData := evaluator.tableDatas[value]
-	parentData := evaluator.tableDatas[parent]
-
-	for key, item := range parentData.value {
-		// Merge item from parent if key is not already there.
-		if _, ok := valueData.value[key]; !ok {
-			valueData.value[key] = item
-		}
-	}
-
 	return nil
 }
 
-func (evaluator *Evaluator) evaluateTable(table *parser.ExprTable) error {
-	if err := evaluator.evaluateTableKeys(table); err != nil {
-		return err
-	}
-
-	for key := range evaluator.tableDatas[table].value {
-		if err := evaluator.evaluateTableValue(table, key); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// TODO: Prove that only a single unwrap is ever needed.
 func (evaluator *Evaluator) unwrap(expr parser.Expr) (parser.Expr, error) {
-	for {
-		if expr == nil {
-			return nil, nil
+	switch current := expr.(type) {
+	case *parser.ExprStr,
+		*parser.ExprBool,
+		*parser.ExprInt,
+		*parser.ExprFloat,
+		*parser.ExprArray,
+		*parser.ExprTable:
+
+		// Exit on concrete values.
+		return expr, nil
+
+	case *parser.ExprRef:
+		if err := evaluator.evaluateRef(current); err != nil {
+			return nil, err
 		}
 
-		switch current := expr.(type) {
-		case *parser.ExprStr,
-			*parser.ExprBool,
-			*parser.ExprInt,
-			*parser.ExprFloat,
-			*parser.ExprArray,
-			*parser.ExprTable:
+		return evaluator.refDatas[current].value, nil
 
-			// Exit on concrete values.
-			return expr, nil
-
-		case *parser.ExprRef:
-			// Evaluate the reference.
-			if err := evaluator.evaluateRef(current); err != nil {
-				return nil, err
-			}
-
-			// Repeat with expression from reference.
-			expr = evaluator.refDatas[current].value
-
-		case *parser.ExprUnary:
-			// Evaluate the unary.
-			if err := evaluator.evaluateUnary(current); err != nil {
-				return nil, err
-			}
-
-			// Repeat with expression from unary.
-			expr = evaluator.unaryDatas[current].value
-
-		case *parser.ExprBinary:
-			// Evaluate the binary.
-			if err := evaluator.evaluateBinary(current); err != nil {
-				return nil, err
-			}
-
-			// Repeat with expression from binary.
-			expr = evaluator.binaryDatas[current].value
+	case *parser.ExprUnary:
+		if err := evaluator.evaluateUnary(current); err != nil {
+			return nil, err
 		}
+
+		return evaluator.unaryDatas[current].value, nil
+
+	case *parser.ExprBinary:
+		if err := evaluator.evaluateBinary(current); err != nil {
+			return nil, err
+		}
+
+		return evaluator.binaryDatas[current].value, nil
+	}
+
+	// Expression is invalid if it somehow does not match.
+	return nil, &logger.Error{
+		Message: "Invalid expression.",
+		Pos:     expr.Pos(),
 	}
 }
 
-// TODO: Prove that unwrap and errors are not necessary.
-func (evaluator *Evaluator) resolve(expr parser.Expr) any {
+func (evaluator *Evaluator) resolve(expr parser.Expr) (any, error) {
 	expr, err := evaluator.unwrap(expr)
 	if err != nil {
-		panic("Unable to resolve expression.")
+		return nil, err
 	}
 
 	switch current := expr.(type) {
 	case *parser.ExprStr:
-		return current.Value
+		return current.Value, nil
 
 	case *parser.ExprBool:
-		return current.Value
+		return current.Value, nil
 
 	case *parser.ExprInt:
-		return current.Value
+		return current.Value, nil
 
 	case *parser.ExprFloat:
-		return current.Value
+		return current.Value, nil
 
 	case *parser.ExprArray:
 		items := []any{}
 
-		for _, item := range evaluator.arrayDatas[current].value {
-			items = append(items, evaluator.resolve(item.value))
+		for _, item := range evaluator.arrayDatas[current].items {
+			unwrapped, err := evaluator.resolve(item.value)
+			if err != nil {
+				return nil, err
+			}
+
+			items = append(items, unwrapped)
 		}
 
-		return items
+		return items, nil
 
 	case *parser.ExprTable:
 		items := map[string]any{}
 
-		for key, item := range evaluator.tableDatas[current].value {
-			items[key] = evaluator.resolve(item.value)
+		for key, item := range evaluator.tableDatas[current].items {
+			unwrapped, err := evaluator.resolve(item.value)
+			if err != nil {
+				return nil, err
+			}
+
+			items[key] = unwrapped
 		}
 
-		return items
-
-	case *parser.ExprRef, *parser.ExprUnary, *parser.ExprBinary:
-		panic("Failed to resolve expression.")
+		return items, nil
 	}
 
-	return nil
+	return nil, &logger.Error{
+		Message: "Invalid expression.",
+		Pos:     expr.Pos(),
+	}
 }
